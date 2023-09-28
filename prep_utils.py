@@ -35,7 +35,7 @@ def check_missing_values(db_cur, table):
     missing_values = {}
 
     for column_name in attributes:
-        query = f"SELECT COUNT(*) FROM {table} WHERE {column_name} IS NULL;"
+        query = f"SELECT COUNT(*) FROM {table} WHERE {column_name} IS NULL OR {column_name} = '';"
         db_cur.execute(query)
         result = db_cur.fetchone()[0]
         missing_values[column_name] = result > 0
