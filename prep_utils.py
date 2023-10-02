@@ -1,4 +1,5 @@
 from tabulate import tabulate
+import matplotlib.pyplot as plt
 
 
 def get_db_tables(db_cur):
@@ -9,19 +10,20 @@ def get_db_tables(db_cur):
 
 
 def parse_columns_type(db_cur, table):
-    attributes = get_table_attributes(db_cur,table)
+    attributes = get_table_attributes(db_cur, table)
     numerical = []
     non_numerical = []
     for attr in attributes:
         query = f"SELECT typeof({attr}) FROM {table} LIMIT 1;"
         db_cur.execute(query)
         result = db_cur.fetchone()[0]
-        if(result == "integer" or result == "real"):
+        if result == "integer" or result == "real":
             numerical.append(attr)
         else:
             non_numerical.append(attr)
-    
-    return numerical,non_numerical
+
+    return numerical, non_numerical
+
 
 def get_table_attributes(db_cur, table):
     query = f"select name from pragma_table_info('{table}');"
@@ -43,7 +45,7 @@ def check_missing_values(db_cur, table):
         db_cur.execute(query)
         null_count = db_cur.fetchone()[0]
         percentage_null = (null_count / total_rows) * 100
-        
+
         missing_values[column_name] = {
             'has_missing': null_count > 0,
             'percentage_null': percentage_null
@@ -52,12 +54,13 @@ def check_missing_values(db_cur, table):
     flag = False
 
     for column, values in missing_values.items():
-        if(values['has_missing']):
+        if values['has_missing']:
             flag = True
             print(f"Column '{column}' has missing values: {values['has_missing']} - {values['percentage_null']:.2f}%")
-    
+
     if not flag:
-        print("There are no missing values!",end="")
+        print("There are no missing values!", end="")
+
 
 def calculate_summary_statistics(db_cur, table, numerical_columns):
     summary_stats = []
@@ -76,10 +79,10 @@ def calculate_summary_statistics(db_cur, table, numerical_columns):
                 MAX({column}) AS max
             FROM {table}
         """
-        
+
         db_cur.execute(query)
         result = db_cur.fetchone()
-        
+
         stats = [column] + list(result)
         summary_stats.append(stats)
 
@@ -88,3 +91,16 @@ def calculate_summary_statistics(db_cur, table, numerical_columns):
 
     # Print the summary statistics as a table
     print(tabulate(summary_stats, headers, tablefmt="grid"))
+
+
+def plot_pie_diagram(db_cur, attribute, table, title):
+    db_cur.execute(f"SELECT {attribute} FROM {table}")
+    data = db_cur.fetchall()
+
+    plot_data = [row[0] for row in data]
+
+    value_counts = {value: plot_data.count(value) for value in set(plot_data)}
+
+    plt.pie(value_counts.values(), labels=value_counts.keys(), autopct='%1.1f%%')
+    plt.title(title)
+    plt.show()
