@@ -97,10 +97,21 @@ def plot_pie_diagram(db_cur, attribute, table, title):
     db_cur.execute(f"SELECT {attribute} FROM {table}")
     data = db_cur.fetchall()
 
+    # Prepare the data
     plot_data = [row[0] for row in data]
 
+    # Calculate the frequency of each unique value
     value_counts = {value: plot_data.count(value) for value in set(plot_data)}
 
-    plt.pie(value_counts.values(), labels=value_counts.keys(), autopct='%1.1f%%')
-    plt.title(title)
+    # Calculate total count
+    total_count = sum(value_counts.values())
+
+    # Plot the pie diagram
+    labels = [f"{key}\n({value})"
+              for key, value in value_counts.items()]
+    
+    plt.pie(value_counts.values(), labels=labels, autopct='%1.1f%%')
+    plt.title('Pie Diagram')
     plt.show()
+
+
