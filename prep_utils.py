@@ -98,22 +98,76 @@ def plot_pie_diagram(db_cur, attribute, table, title):
     db_cur.execute(f"SELECT {attribute} FROM {table}")
     data = db_cur.fetchall()
 
-    # Prepare the data
     plot_data = [row[0] for row in data]
 
-    # Calculate the frequency of each unique value
     value_counts = {value: plot_data.count(value) for value in set(plot_data)}
 
-    # Calculate total count
     total_count = sum(value_counts.values())
 
-    # Plot the pie diagram
     labels = [f"{key}\n({value})"
               for key, value in value_counts.items()]
     
     plt.pie(value_counts.values(), labels=labels, autopct='%1.1f%%')
     plt.title(title)
     plt.show()
+
+def plot_playoff_coaches(db_cur):
+    fst_query = '''
+                SELECT C1.coachId, COUNT(DISTINCT C2.year) as playoff_count
+                FROM Coaches C1
+                LEFT JOIN Coaches C2 ON C1.coachId = C2.coachId
+                                AND (C2.post_wins != 0 OR C2.post_losses != 0)
+                GROUP BY C1.coachId ORDER BY playoff_count DESC;
+        '''
+    
+    snd_query = '''
+                SELECT
+                    COUNT(DISTINCT CASE WHEN C2.coachId IS NOT NULL THEN C1.coachId END) as coaches_in_playoffs,
+                    COUNT(DISTINCT CASE WHEN C2.coachId IS NULL THEN C1.coachId END) as coaches_not_in_playoffs
+                    FROM Coaches C1
+                        LEFT JOIN Coaches C2 ON C1.coachId = C2.coachId
+                            AND (C2.post_wins != 0 OR C2.post_losses != 0);
+                '''
+    
+    
+    db_cur.execute(fst_query)
+    sorted_coaches = db_cur.fetchall()
+    
+    db_cur.execute(snd_query)
+    result = db_cur.fetchone()
+    
+    total_coaches = result[0] + result[1]
+    percentages = [result[0] / total_coaches * 100, result[1] / total_coaches * 100]
+
+    
+    labels = ['Coaches been in Playoffs', 'Coaches not been in Playoffs']
+    values = [result[0], result[1]]
+    
+    fig, ax = plt.subplots()
+    bars = ax.bar(labels, values, color=['blue', 'orange'])
+
+    # Display percentages on top of bars
+    for bar, percentage in zip(bars, percentages):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, height, f'{percentage:.2f}%', ha='center', va='bottom')
+
+    plt.ylabel('Number of Coaches')
+    plt.title('Count of Coaches in Playoffs vs. Not in Playoffs with Percentages')
+    plt.show()
+
+    
+    print(f"\033[1mCoach PlayOffs Appearances:\033[0m")
+    for coach,nr in sorted_coaches:
+        print(f"{coach} - {nr}")
+    
+
+
+    
+
+
+
+
+
 
 def check_for_outliers(db_cur):
     # Modify the query to select specific columns by index
