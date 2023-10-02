@@ -111,7 +111,7 @@ def plot_pie_diagram(db_cur, attribute, table, title):
               for key, value in value_counts.items()]
     
     plt.pie(value_counts.values(), labels=labels, autopct='%1.1f%%')
-    plt.title('Pie Diagram')
+    plt.title(title)
     plt.show()
 
 
