@@ -8,6 +8,26 @@ def get_db_tables(db_cur):
     result = db_cur.fetchall()
     return [x[0] for x in result]
 
+def count_distinct_values(db_cur):
+    tables = get_db_tables(db_cur)
+    for table in tables:
+        num, non_num = parse_columns_type(db_cur, table)
+        total = num + non_num
+
+        print(f"\033[1m{table} - distinct values: \033[0m")
+        
+        table_data = []
+        for attr in total:
+            db_cur.execute(f"SELECT COUNT(DISTINCT {attr}) FROM {table} WHERE {attr} IS NOT NULL OR {attr} != ''")
+            result = db_cur.fetchone()
+            table_data.append([attr, result[0]])
+
+        headers = ["Attribute", "Distinct Count"]
+        print(tabulate(table_data, headers=headers, tablefmt="fancy_grid"))
+
+        print('\n')
+        
+
 
 def parse_columns_type(db_cur, table):
     attributes = get_table_attributes(db_cur, table)
@@ -97,7 +117,7 @@ def plot_pie_diagram(db_cur, attribute, table, title):
     db_cur.execute(f"SELECT {attribute} FROM {table}")
     data = db_cur.fetchall()
 
-    plot_data = [row[0] for row in data]
+    plot_data = [row[0] if row[0] != '' else 'NULL' for row in data]
 
     value_counts = {value: plot_data.count(value) for value in set(plot_data)}
 
@@ -109,6 +129,8 @@ def plot_pie_diagram(db_cur, attribute, table, title):
     plt.pie(value_counts.values(), labels=labels, autopct='%1.1f%%')
     plt.title(title)
     plt.show()
+    
+
 
 def plot_playoff_coaches(db_cur):
     fst_query = '''
@@ -151,7 +173,7 @@ def plot_playoff_coaches(db_cur):
         ax.text(bar.get_x() + bar.get_width() / 2, height, f'{percentage:.2f}%', ha='center', va='bottom')
 
     plt.ylabel('Number of Coaches')
-    plt.title('Count of Coaches in Playoffs vs. Not in Playoffs with Percentages')
+    plt.title('Coaches ever in Playoffs vs. never in Playoffs')
     plt.show()
 
     
@@ -161,8 +183,37 @@ def plot_playoff_coaches(db_cur):
     
 
 
+def playoffs_teams(db_cur):
+    fst_query = '''
+                SELECT COUNT(DISTINCT tmID) FROM teams;
+                '''
     
+    snd_query = '''
+                SELECT COUNT(DISTINCT tmID) FROM teams_post;
+                '''
 
+    db_cur.execute(fst_query)
+    all_teams = db_cur.fetchone()[0]
+    
+    db_cur.execute(snd_query)
+    play_offs = db_cur.fetchone()[0]
+    
+    percentages = [play_offs/all_teams * 100, (all_teams - play_offs)/all_teams * 100]
+    values = [play_offs, all_teams - play_offs]
+    
+    labels = ['Teams been in Playoffs', 'Teams not been in Playoffs']
+    
+    fig, ax = plt.subplots()
+    bars = ax.bar(labels, values, color=['blue', 'orange'])
+
+
+    for bar, percentage in zip(bars, percentages):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, height, f'{percentage:.2f}%', ha='center', va='bottom')
+
+    plt.ylabel('Number of Teams')
+    plt.title('Team ever in Playoffs vs. Never in Playoffs')
+    plt.show()
 
 
 
