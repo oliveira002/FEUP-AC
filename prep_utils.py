@@ -1,5 +1,6 @@
 from tabulate import tabulate
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def get_db_tables(db_cur):
@@ -215,6 +216,72 @@ def playoffs_teams(db_cur):
     plt.title('Team ever in Playoffs vs. Never in Playoffs')
     plt.show()
 
+def check_for_outliers(db_cur):
+    # Modify the query to select specific columns by index
+    query = "SELECT rank, o_fgm, o_fga, o_ftm, o_fta, o_3pm, o_3pa, o_oreb, o_dreb, o_reb, o_asts, o_pf, o_stl, o_to, o_blk, o_pts, d_fgm, d_fga, d_ftm, d_fta, d_3pm, d_3pa, d_oreb, d_dreb, d_reb, d_asts, d_pf, d_stl, d_to, d_blk, d_pts   FROM teams;"
+  
+    
+    # Fetch the data from the database
+    coaches_data = db_cur.execute(query).fetchall()
+    columns = ['rank', 'o_fgm', 'o_fga', 'o_ftm', 'o_fta', 'o_3pm', 'o_3pa', 'o_oreb', 'o_dreb', 'o_reb', 'o_asts', 'o_pf', 'o_stl', 'o_to', 'o_blk', 'o_pts', 'd_fgm', 'd_fga', 'd_ftm', 'd_fta', 'd_3pm', 'd_3pa', 'd_oreb', 'd_dreb', 'd_reb', 'd_asts', 'd_pf', 'd_stl', 'd_to', 'd_blk', 'd_pts']
+    columns = columns
+    # Calculate the number of columns and rows for the subplot grid
+    n_columns = len(columns)
+    n_rows = (n_columns - 1) // 4 + 1  # Adjust the number of rows
+     # Create subplots based on the number of columns and rows
+    fig, axes = plt.subplots(nrows=n_rows, ncols=4, figsize=(16, 3 * n_rows))
+    
+    # Loop through columns and create box plots
+    for i, column in enumerate(columns):
+        row_idx = i // 4
+        col_idx = i % 4
+        column_values = [row[i] for row in coaches_data]
+        ax = sns.boxplot(y=column_values, ax=axes[row_idx][col_idx])
+        ax.set_title(column)
+
+    # Hide any remaining empty subplots
+    for i in range(n_columns, n_rows * 4):
+        row_idx = i // 4
+        col_idx = i % 4
+        fig.delaxes(axes[row_idx][col_idx])
+
+    plt.tight_layout()
+    plt.show()
+ 
 
 
 
+
+def check_for_outliers(db_cur):
+    # Modify the query to select specific columns by index
+    query = "SELECT rank, o_fgm, o_fga, o_ftm, o_fta, o_3pm, o_3pa, o_oreb, o_dreb, o_reb, o_asts, o_pf, o_stl, o_to, o_blk, o_pts, d_fgm, d_fga, d_ftm, d_fta, d_3pm, d_3pa, d_oreb, d_dreb, d_reb, d_asts, d_pf, d_stl, d_to, d_blk, d_pts   FROM teams;"
+  
+    
+    # Fetch the data from the database
+    coaches_data = db_cur.execute(query).fetchall()
+    columns = ['rank', 'o_fgm', 'o_fga', 'o_ftm', 'o_fta', 'o_3pm', 'o_3pa', 'o_oreb', 'o_dreb', 'o_reb', 'o_asts', 'o_pf', 'o_stl', 'o_to', 'o_blk', 'o_pts', 'd_fgm', 'd_fga', 'd_ftm', 'd_fta', 'd_3pm', 'd_3pa', 'd_oreb', 'd_dreb', 'd_reb', 'd_asts', 'd_pf', 'd_stl', 'd_to', 'd_blk', 'd_pts']
+    columns = columns
+    # Calculate the number of columns and rows for the subplot grid
+    n_columns = len(columns)
+    n_rows = (n_columns - 1) // 4 + 1  # Adjust the number of rows
+     # Create subplots based on the number of columns and rows
+    fig, axes = plt.subplots(nrows=n_rows, ncols=4, figsize=(16, 3 * n_rows))
+    
+    # Loop through columns and create box plots
+    for i, column in enumerate(columns):
+        row_idx = i // 4
+        col_idx = i % 4
+        column_values = [row[i] for row in coaches_data]
+        ax = sns.boxplot(y=column_values, ax=axes[row_idx][col_idx])
+        ax.set_title(column)
+
+    # Hide any remaining empty subplots
+    for i in range(n_columns, n_rows * 4):
+        row_idx = i // 4
+        col_idx = i % 4
+        fig.delaxes(axes[row_idx][col_idx])
+
+    plt.tight_layout()
+    plt.show()
+ 
+ 
