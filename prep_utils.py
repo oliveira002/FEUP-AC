@@ -57,5 +57,6 @@ def prepare_players(df, df_players_teams):
     df = df[df['bioID'].isin(df_players_teams['playerID'])]
     
     print("Dropping Attributes firstseason & lastseason in \033[1mPlayers\033[0m...")
-    df.drop('lgID', axis=1, inplace=True)
+    df.drop('firstseason', axis=1, inplace=True)
+    df.drop('lastseason', axis=1, inplace=True)
     return df
