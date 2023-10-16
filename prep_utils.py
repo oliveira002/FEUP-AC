@@ -109,3 +109,64 @@ def prepare_players(df, df_players_teams):
 
     
     return df
+
+
+def best_players(player_teams_df, teams_df):
+    # Filter the teams DataFrame to contain only playoff appearances
+    playoff_teams = teams_df[(teams_df['playoff'] == 'Y')]
+
+   
+    # Merge the players and playoff_teams DataFrames on 'lgID' and 'year'
+    merged_df = pd.merge(player_teams_df, playoff_teams, left_on=['tmID', 'year'], right_on=['tmID', 'year'], how='inner')
+ 
+    # Table with the count of appearances for each player
+    playoff_count = merged_df['playerID'].value_counts()
+ 
+    return playoff_count
+
+def best_colleges(player_teams_df, teams_df, players_df):
+    
+    playoff_apperances = best_players(player_teams_df, teams_df)
+   
+    
+    # Merge the merged_df with the players DataFrame to get college information
+    merged_df = pd.merge(playoff_apperances, players_df, left_on='playerID', right_on='bioID', how='inner')
+
+ 
+    # Group by college and sum playoff appearances
+    college_playoff_sum = merged_df.groupby('college')['bioID'].count().reset_index()
+
+
+    # Sort the values of playoff_count
+    college_playoff_sum = college_playoff_sum.sort_values(by='bioID', ascending=False)
+
+    college_playoff_sum.columns = ['college', 'TotalPlayoffAppearances']
+
+    # Add a new column for the college ranking
+    college_playoff_sum['CollegeRank'] = college_playoff_sum['TotalPlayoffAppearances'].rank(ascending=False, method='dense').astype(int)
+
+   
+  
+    return college_playoff_sum
+
+def prepare_teams(teams_df):
+    print("Dropping divID in \033[1mTeams\033[0m...")
+
+    teams_df.drop('divID', axis=1, inplace=True)
+    
+    print("Dropping ldID in \033[1mTeams\033[0m...")
+    teams_df.drop('lgID', axis=1, inplace=True)
+
+    print("Dropping seeded in \033[1mTeams\033[0m...")
+
+    teams_df.drop('seeded', axis=1, inplace=True)
+
+    print("Dropping tmORB, tmDRB, tmTRB, opptmORB, opptmDRB, opptmTRB in \033[1mTeams\033[0m...")
+
+    teams_df.drop('tmORB', axis=1, inplace=True)
+    teams_df.drop('tmDRB', axis=1, inplace=True)
+    teams_df.drop('tmTRB', axis=1, inplace=True)
+    teams_df.drop('opptmORB', axis=1, inplace=True)
+    teams_df.drop('opptmDRB', axis=1, inplace=True)
+    teams_df.drop('opptmTRB', axis=1, inplace=True)
+
