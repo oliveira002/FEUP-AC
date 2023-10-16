@@ -45,8 +45,8 @@ def prepare_coaches(df, df_awards):
     playoffs_mask = (df['post_wins'] != 0) | (df['post_losses'] != 0)
     df['playoffs_count'] = playoffs_mask.groupby(df['coachID']).cumsum() - playoffs_mask.astype(int)
     
-    df.drop('post_wins', axis=1, inplace=True)
-    df.drop('post_losses', axis=1, inplace=True)
+    #df.drop('post_wins', axis=1, inplace=True)
+    #df.drop('post_losses', axis=1, inplace=True)
 
     df["coach_awards"] = 0
     
@@ -107,7 +107,6 @@ def prepare_players(df, df_players_teams):
     print(f"\033[1mNull Entries weight\033[0m - {num_weight}")
     print(f"\033[1mNull Entries height\033[0m - {num_height}")
 
-    
     return df
 
 
@@ -170,3 +169,47 @@ def prepare_teams(teams_df):
     teams_df.drop('opptmDRB', axis=1, inplace=True)
     teams_df.drop('opptmTRB', axis=1, inplace=True)
 
+def custom_agg(group):
+    coaches_info = []
+    for _, coach_row in group.iterrows():
+        coach_info = f"{coach_row['coachID']},{coach_row['won'] + coach_row['lost']},{coach_row['coach_po_win_ratio']}"
+        coaches_info.append(coach_info)
+        
+    return pd.Series({
+        'stint': group['stint'].sum(),
+        'won': group['won'].sum(),
+        'lost': group['lost'].sum(),
+        'post_wins': group['post_wins'].sum(),
+        'post_losses': group['post_losses'].sum(),
+        'playoffs_count': group['playoffs_count'].sum(),
+        'coach_awards': group['coach_awards'].sum(),
+        'COACHES': ','.join(group['coachID']),
+        'coaches_playoffs_win_ratio': ';'.join(coaches_info)
+    })
+    
+
+def calculate_coach_sum(row):
+    coaches = row['coaches_playoffs_win_ratio'].split(';')
+    total_sum = 0
+
+    for coach_info in coaches:
+        coach_data = coach_info.split(',')
+        if len(coach_data) == 3:
+            games_played = int(coach_data[1])
+            win_ratio = float(coach_data[2])
+            total_games = row['won'] + row['lost']
+            contribution = (games_played / total_games) * win_ratio
+            total_sum += contribution
+
+    return total_sum
+    
+
+
+def group_coaches(df):
+    new_df = df.groupby(['year', 'tmID']).apply(custom_agg).reset_index()
+    new_df['coaches_playoffs_win_ratio'] = new_df.apply(calculate_coach_sum, axis=1)
+    
+    new_df.drop('post_wins', axis=1, inplace=True)
+    new_df.drop('post_losses', axis=1, inplace=True)
+    new_df.drop('stint', axis=1, inplace=True)
+    print(new_df.to_string())
