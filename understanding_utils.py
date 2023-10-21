@@ -269,6 +269,32 @@ def target_distribution(db_cur):
     plt.title('Teams Qualified for Playoffs over the Years')
     plt.show()
 
+def each_team_po_appearances(db_cur):
+    query = '''
+    SELECT tmID, COUNT(DISTINCT year) AS num_years
+    FROM Teams_Post
+    GROUP BY tmID ORDER BY NUM_YEARS DESC;
+    '''
+    db_cur.execute(query)
+
+
+    results = db_cur.fetchall()
+
+    tmIDs = [result[0] for result in results]
+    num_years = [result[1] for result in results]
+
+    colors = ['blue', 'green', 'red', 'purple', 'orange']  
+
+    # Increase the figure size
+    plt.figure(figsize=(10, 6))  # Adjust the size as needed
+
+    # Create a bar plot with adjusted width, different colors, and increased figure size
+    plt.bar(tmIDs, num_years, color=colors, width=0.6)  # Adjust the width as needed
+    plt.xlabel('Team ID')
+    plt.ylabel('Number of Years')
+    plt.title('Number of Years Each Team Appears')
+    plt.show()
+
 def check_for_outliers(db_cur):
     # Modify the query to select specific columns by index
     query = "SELECT rank, o_fgm, o_fga, o_ftm, o_fta, o_3pm, o_3pa, o_oreb, o_dreb, o_reb, o_asts, o_pf, o_stl, o_to, o_blk, o_pts, d_fgm, d_fga, d_ftm, d_fta, d_3pm, d_3pa, d_oreb, d_dreb, d_reb, d_asts, d_pf, d_stl, d_to, d_blk, d_pts, tmORB, tmDRB, tmTRB, opptmORB, opptmDRB, opptmTRB, won, lost, GP, homeW, homeL, awayW, awayL, confW, confL, min, attend FROM teams;"
@@ -300,4 +326,3 @@ def check_for_outliers(db_cur):
 
     plt.tight_layout()
     plt.show()
- 

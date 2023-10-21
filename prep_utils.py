@@ -26,8 +26,6 @@ def prepare_coaches(df, df_awards):
     print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
     df.drop('lgID', axis=1, inplace=True)
     
-    
-    
     # Creating attribute coach_po_win_ratio, meaning the playoffs win ratio of a coach until the current year
     df = df.sort_values(by=['coachID', 'year'])
     df['total_playoffs_win'] = df.groupby('coachID')['post_wins'].cumsum() - df['post_wins']
@@ -135,7 +133,6 @@ def best_colleges(player_teams_df, teams_df, players_df):
     # Group by college and sum playoff appearances
     college_playoff_sum = merged_df.groupby('college')['bioID'].count().reset_index()
 
-
     # Sort the values of playoff_count
     college_playoff_sum = college_playoff_sum.sort_values(by='bioID', ascending=False)
 
@@ -144,8 +141,6 @@ def best_colleges(player_teams_df, teams_df, players_df):
     # Add a new column for the college ranking
     college_playoff_sum['CollegeRank'] = college_playoff_sum['TotalPlayoffAppearances'].rank(ascending=False, method='dense').astype(int)
 
-   
-  
     return college_playoff_sum
 
 def prepare_teams(teams_df):
@@ -172,7 +167,7 @@ def prepare_teams(teams_df):
 def custom_agg(group):
     coaches_info = []
     for _, coach_row in group.iterrows():
-        coach_info = f"{coach_row['coachID']},{coach_row['won'] + coach_row['lost']},{coach_row['coach_po_win_ratio']}"
+        coach_info = f"{coach_row['coachID']},{coach_row['won'] + coach_row['lost']},{coach_row['coach_po_win_ratio']},{coach_row['coach_awards']},{coach_row['playoffs_count']}"
         coaches_info.append(coach_info)
         
     return pd.Series({
@@ -182,9 +177,7 @@ def custom_agg(group):
         'post_wins': group['post_wins'].sum(),
         'post_losses': group['post_losses'].sum(),
         'playoffs_count': group['playoffs_count'].sum(),
-        'coach_awards': group['coach_awards'].sum(),
-        'COACHES': ','.join(group['coachID']),
-        'coaches_playoffs_win_ratio': ';'.join(coaches_info)
+        'coaches_info': ';'.join(coaches_info)
     })
     
 
@@ -204,12 +197,46 @@ def calculate_coach_sum(row):
     return total_sum
     
 
+def coach_contributions(coaches_info):
+    res = []
+    info = coaches_info.split(";")
+    
+    total_matches = 0
+    
+    for x in info:
+        x = x.split(',')
+        res.append((x[0],int(x[1]),float(x[2]),int(x[3]),int(x[4])))
+        total_matches += int(x[1])
+    
+    res = [(x,y/total_matches,z,a,b) for (x,y,z,a,b) in res]
+    return res
 
+
+def calculate_new_attributes(row):
+    prev_num_playoffs = 0
+    prev_awards = 0
+    prev_playoff_ratio = 0
+
+    coaches = coach_contributions(row['coaches_info'])
+
+    for x in coaches:
+        prev_num_playoffs += x[1] * x[4]
+        prev_awards += x[1] * x[3]
+        prev_playoff_ratio += x[1] * x[2]
+
+    return pd.Series({'prev_coaches_num_playoffs': prev_num_playoffs,
+                      'prev_coaches_awards': prev_awards,
+                      'prev_coaches_playoff_win_ratio': prev_playoff_ratio})
+    
+    
 def group_coaches(df):
     new_df = df.groupby(['year', 'tmID']).apply(custom_agg).reset_index()
-    new_df['coaches_playoffs_win_ratio'] = new_df.apply(calculate_coach_sum, axis=1)
+    
+    #new_columns = new_df.apply(calculate_new_attributes, axis=1)
+    #new_df = pd.concat([new_df, new_columns], axis=1)
     
     new_df.drop('post_wins', axis=1, inplace=True)
     new_df.drop('post_losses', axis=1, inplace=True)
     new_df.drop('stint', axis=1, inplace=True)
+    #new_df.drop('playoffs_count', axis=1, inplace=True)
     print(new_df.to_string())
