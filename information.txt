@@ -1,6 +1,7 @@
 Coaches:
 Win-Rate of games and playoff games in previous years
 Number of Awards
+Just the coach that started the season
 
 Teams:
 Number of players that left/joined (last year)
