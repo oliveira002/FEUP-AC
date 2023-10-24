@@ -1,6 +1,12 @@
 import pandas as pd
 import numpy as np
 
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
+import seaborn as sn
+import matplotlib.pyplot as plt
 
 def db_to_pandas(conn):
     df_awards = pd.read_sql_query("Select * from awards_players;",conn)
@@ -127,6 +133,27 @@ def temp_prepare_coaches(df, df_awards):
     
     return df
 
+
+
+
+
+def prepare_players_for_ranking(df_players, df_awards):
+
+    
+    df_playersnew = df_players.groupby(['playerID', 'year'])["stint"].idxmax()
+
+    df_players = df_players.loc[df_playersnew]
+
+    df_players["player_awards"] = 0
+
+    df_players = player_award_count(df_players,df_awards, False)
+    
+
+
+    return df_players
+
+
+
 def players_team_agg(group):
     attributes = ["GP","GS","minutes","points","oRebounds","dRebounds","rebounds","assists","steals","blocks","turnovers","PF","fgAttempted","fgMade","ftAttempted","ftMade","threeAttempted","threeMade","dq","PostGP","PostGS","PostMinutes","PostPoints","PostoRebounds","PostdRebounds","PostRebounds","PostAssists","PostSteals","PostBlocks","PostTurnovers","PostPF","PostfgAttempted","PostfgMade","PostftAttempted","PostftMade","PostthreeAttempted","PostthreeMade","PostDQ"]
     
@@ -158,7 +185,7 @@ def prepare_player_teams(df,df_awards,past_years):
     
     df["player_awards"] = 0
     
-    df = player_award_count(df,df_awards)
+    df = player_award_count(df,df_awards, True)
     
     
     print(df.to_string())
@@ -166,13 +193,15 @@ def prepare_player_teams(df,df_awards,past_years):
     return df
 
 
-def player_award_count(df,df_awards):
+def player_award_count(df,df_awards,previous_years):
     for index, row in df_awards.iterrows():
         player_id = row['playerID']
         award = row['award']
         award_year = row['year']
-        
-        mask = (df['playerID'] == player_id) & (df['year'] > award_year)
+        if(previous_years):
+            mask = (df['playerID'] == player_id) & (df['year'] > award_year)
+        else:
+            mask = (df['playerID'] == player_id) & (df['year'] == award_year)
         df.loc[mask, 'player_awards'] += 1
     
     return df
@@ -306,3 +335,73 @@ def group_coaches(df):
     print(new_df.isna().sum())
     
     return new_df
+
+def ranking_players(df_players_info, df_players, df_teams):
+    # Merge the DataFrames
+    merged_df = pd.merge(df_players_info, df_players, left_on='playerID', right_on='bioID', how='inner')
+
+
+    merged_df = pd.merge(merged_df, df_teams[['tmID', 'year', 'playoff']], left_on=['tmID', 'year'], right_on=['tmID', 'year'], how='inner')
+ 
+
+    position_features = {
+    'G': ['points', 'assists', 'steals', 'turnovers', 'minutes'],
+    'C-F': ['points', 'assists', 'steals', 'turnovers', 'minutes'],
+    'C': ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes'],
+    'F': ['points', 'rebounds', 'blocks', 'minutes'],
+    'F-C': ['points', 'rebounds', 'blocks', 'minutes'],
+    'F-G': ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes'],
+    'G-F': ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes']
+    }
+
+
+    all_features = ['minutes', 'points', 'oRebounds', 'dRebounds', 'rebounds',
+                'assists', 'steals', 'blocks', 'turnovers', 'PF', 'fg%', 'ft%',
+                 '3pt%', 'dq', 'player_awards','PER']
+ 
+    # %fg = fgMade/fgAttempted, %ft = ftMade/ftAttempted, %3pt = threeMade/threeAttempted, care for 0/0
+    merged_df['fg%'] = np.where(merged_df['fgAttempted'] == 0, 0, merged_df['fgMade'] / merged_df['fgAttempted'])
+    merged_df['ft%'] = np.where(merged_df['ftAttempted'] == 0, 0, merged_df['ftMade'] / merged_df['ftAttempted'])
+    merged_df['3pt%'] = np.where(merged_df['threeAttempted'] == 0, 0, merged_df['threeMade'] / merged_df['threeAttempted'])
+    merged_df['playoff'] = np.where(merged_df['playoff'] == 'Y', 1, 0)    
+    merged_df['Postfg%'] = np.where(merged_df['PostfgAttempted'] == 0, 0, merged_df['PostfgMade'] / merged_df['PostfgAttempted'])
+    merged_df['Postft%'] = np.where(merged_df['PostftAttempted'] == 0, 0, merged_df['PostftMade'] / merged_df['PostftAttempted'])
+    merged_df['Post3pt%'] = np.where(merged_df['PostthreeAttempted'] == 0, 0, merged_df['PostthreeMade'] / merged_df['PostthreeAttempted'])
+
+    merged_df['PER'] = ((merged_df['fgMade'] * 85.910) + (merged_df['steals'] * 53.897) + (merged_df['threeMade'] * 51.757) + (merged_df['ftMade'] * 46.845) + (merged_df['blocks'] * 39.190) + (merged_df['oRebounds'] * 39.190) + (merged_df['assists'] * 34.677) + (merged_df['dRebounds'] * 14.707) - (merged_df['PF'] * 17.174) - ((merged_df['ftAttempted'] - merged_df['ftMade']) * 20.091) - ((merged_df['fgAttempted'] - merged_df['fgMade']) * 39.190) - (merged_df['turnovers'] * 53.897)) * (np.where(merged_df['minutes'] == 0, 0, 1 / merged_df['minutes']))
+
+
+    # Create an empty dictionary to store feature importance for each position
+    feature_importance = {position: {} for position in position_features.keys()}
+    df_players = merged_df.copy()
+
+    #Change the playoff column to 1 and 0
+   
+    # Iterate over positions and build models
+    for position, features in position_features.items():
+        # Prepare the data for the current position
+        position_data = df_players[df_players['pos'] == position]
+        X = position_data[all_features]
+        y = position_data['playoff']  # Define your ranking metric (e.g., player impact score)
+
+        # Split the data into training and testing sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # Train a Random Forest model
+        model = RandomForestRegressor()
+        model.fit(X_train, y_train)
+
+        # Calculate feature importance
+        feature_importance[position] = dict(zip(all_features, model.feature_importances_))
+
+        # Evaluate the model (you may use different metrics depending on your ranking metric)
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        print(f"\nMean Squared Error for {position}: {mse}")
+
+        # Print feature importance for each position sorted
+        print(f"Feature importance for {position}:")
+        for feature, importance in sorted(feature_importance[position].items(), key=lambda x: x[1], reverse=True):
+            print(f"{feature}: {importance}")
+
+
