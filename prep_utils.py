@@ -21,7 +21,6 @@ def db_to_pandas(conn):
     
     return [df_awards, df_coaches, df_players_teams, df_players, df_series_post, df_teams_post, df_teams]
     
-
 def prepare_coaches(df, df_awards, past_years):
     print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
     df.drop('lgID', axis=1, inplace=True)
@@ -70,7 +69,6 @@ def prepare_coaches(df, df_awards, past_years):
     print("Dropping attribute won..")    
     print("Dropping attribute lost..")    
 
-    
     return df
 
 def temp_prepare_coaches(df, df_awards):
@@ -129,6 +127,57 @@ def temp_prepare_coaches(df, df_awards):
     
     return df
 
+def players_team_agg(group):
+    attributes = ["GP","GS","minutes","points","oRebounds","dRebounds","rebounds","assists","steals","blocks","turnovers","PF","fgAttempted","fgMade","ftAttempted","ftMade","threeAttempted","threeMade","dq","PostGP","PostGS","PostMinutes","PostPoints","PostoRebounds","PostdRebounds","PostRebounds","PostAssists","PostSteals","PostBlocks","PostTurnovers","PostPF","PostfgAttempted","PostfgMade","PostftAttempted","PostftMade","PostthreeAttempted","PostthreeMade","PostDQ"]
+    
+    min_stint_idx = group['stint'].astype(int).idxmin()
+    result = {'tmID': group.loc[min_stint_idx, 'tmID']}
+    
+    for attr in attributes:
+        result[attr] = group[attr].sum()
+        
+    return pd.Series(result)
+
+
+def prepare_player_teams(df,df_awards,past_years):
+    print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
+    df.drop('lgID', axis=1, inplace=True)
+    
+    df = df.groupby(['playerID', 'year']).apply(players_team_agg).reset_index()
+    
+    def calculate_cumulative_sum(group):
+        return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0)
+    
+    df = df.sort_values(by=['playerID', 'year'])
+    
+    attributes = ["GP","GS","minutes","points","oRebounds","dRebounds","rebounds","assists","steals","blocks","turnovers","PF","fgAttempted","fgMade","ftAttempted","ftMade","threeAttempted","threeMade","dq","PostGP","PostGS","PostMinutes","PostPoints","PostoRebounds","PostdRebounds","PostRebounds","PostAssists","PostSteals","PostBlocks","PostTurnovers","PostPF","PostfgAttempted","PostfgMade","PostftAttempted","PostftMade","PostthreeAttempted","PostthreeMade","PostDQ"]
+    
+    for attr in attributes:
+        
+        df[attr] = df.groupby('playerID')[attr].transform(calculate_cumulative_sum)
+    
+    df["player_awards"] = 0
+    
+    df = player_award_count(df,df_awards)
+    
+    
+    print(df.to_string())
+    
+    return df
+
+
+def player_award_count(df,df_awards):
+    for index, row in df_awards.iterrows():
+        player_id = row['playerID']
+        award = row['award']
+        award_year = row['year']
+        
+        mask = (df['playerID'] == player_id) & (df['year'] > award_year)
+        df.loc[mask, 'player_awards'] += 1
+    
+    return df
+      
+    
 def coach_award_count(df,df_awards):
     for index, row in df_awards.iterrows():
         coach_id = row['playerID']
