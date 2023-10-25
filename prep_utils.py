@@ -77,69 +77,8 @@ def prepare_coaches(df, df_awards, past_years):
 
     return df
 
-def temp_prepare_coaches(df, df_awards):
-    print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
-    df.drop('lgID', axis=1, inplace=True)
-    
-    # Creating attribute coach_po_win_ratio, meaning the playoffs win ratio of a coach until the current year
-    df = df.sort_values(by=['coachID', 'year'])
-    df['reg_season_win'] = df.groupby('coachID')['won'].cumsum() - df['won']
-    df['reg_season_lost'] = df.groupby('coachID')['lost'].cumsum() - df['lost']
-    df['total_playoffs_win'] = df.groupby('coachID')['post_wins'].cumsum() - df['post_wins']
-    df['total_playoffs_lost'] = df.groupby('coachID')['post_losses'].cumsum() - df['post_losses']
-    
-    df['coach_po_win_ratio'] = np.where((df['total_playoffs_win'] + df['total_playoffs_lost']) > 0,
-                                       df['total_playoffs_win'] / (df['total_playoffs_win'] + df['total_playoffs_lost']),
-                                       0)
-    
-    df['coach_reg_win_ratio'] = np.where((df['reg_season_win'] + df['reg_season_lost']) > 0,
-                                       df['reg_season_win'] / (df['reg_season_win'] + df['reg_season_lost']),
-                                       0)
-
-    df.drop('total_playoffs_win', axis=1, inplace=True)
-    df.drop('total_playoffs_lost', axis=1, inplace=True)
-    df.drop('reg_season_win', axis=1, inplace=True)
-    df.drop('reg_season_lost', axis=1, inplace=True)
-    
-    
-    # Creating attribute playoffs_count, meaning the number of times a coach has gone to playoffs until the current year
-    playoffs_mask = (df['post_wins'] != 0) | (df['post_losses'] != 0)
-    df['playoffs_count'] = playoffs_mask.groupby(df['coachID']).cumsum() - playoffs_mask.astype(int)
-    
-
-    df["coach_awards"] = 0
-    
-    print("Creating attribute coach previous regular season win ratio...")
-    print("Creating attribute coach playoffs win ratio...")
-    print("Creating attribute coach playoffs count...")
-    print("Creating attribute coach awards count...")
-    
-    df = coach_award_count(df,df_awards)
-    
-    print("Creating attribute num coach awards...")
-    
-    print("Dropping attribute post_wins..")
-    print("Dropping attribute post_losses..")    
-    print("Dropping attribute won..")    
-    print("Dropping attribute lost..")    
-    
-    df.drop('post_wins', axis=1, inplace=True)
-    df.drop('post_losses', axis=1, inplace=True)
-    df.drop('won', axis=1, inplace=True)
-    df.drop('lost', axis=1, inplace=True)
-    
-    print("\n\033[1mCoaches Null Verification:\033[0m")
-    print(df.isna().sum())
-    
-    return df
-
-
-
-
 
 def prepare_players_for_ranking(df_players, df_awards):
-
-    
     df_playersnew = df_players.groupby(['playerID', 'year'])["stint"].idxmax()
 
     df_players = df_players.loc[df_playersnew]
@@ -152,6 +91,20 @@ def prepare_players_for_ranking(df_players, df_awards):
 
     return df_players
 
+
+def teams_agg(group):
+    attributes = ['rank', 'playoff', 'o_fgm', 'o_fga', 'o_ftm', 'o_fta', 'o_3pm', 'o_3pa', 'o_oreb',
+                      'o_dreb', 'o_reb', 'o_asts', 'o_pf', 'o_stl', 'o_to', 'o_blk', 'o_pts', 'd_fgm',
+                      'd_fga', 'd_ftm', 'd_fta', 'd_3pm', 'd_3pa', 'd_oreb', 'd_dreb', 'd_reb', 'd_asts',
+                      'd_pf', 'd_stl', 'd_to', 'd_blk', 'd_pts', 'won', 'lost', 'W', 'L']
+    
+    min_stint_idx = group['stint'].astype(int).idxmin()
+    result = {'tmID': group.loc[min_stint_idx, 'tmID']}
+    
+    for attr in attributes:
+        result[attr] = group[attr].mean()
+        
+    return pd.Series(result)
 
 
 def players_team_agg(group):
@@ -290,7 +243,7 @@ def best_colleges(player_teams_df, teams_df, players_df):
 
     return college_playoff_sum
 
-def prepare_teams(teams_df):
+def prepare_teams(teams_df, teams_post, past_years):
     print("Dropping divID in \033[1mTeams\033[0m...")
 
     teams_df.drop('divID', axis=1, inplace=True)
@@ -306,11 +259,88 @@ def prepare_teams(teams_df):
 
     teams_df.drop('tmORB', axis=1, inplace=True)
     teams_df.drop('tmDRB', axis=1, inplace=True)
-    teams_df.drop('seeded', axis=1, inplace=True)
     teams_df.drop('tmTRB', axis=1, inplace=True)
     teams_df.drop('opptmORB', axis=1, inplace=True)
     teams_df.drop('opptmDRB', axis=1, inplace=True)
     teams_df.drop('opptmTRB', axis=1, inplace=True)
+    
+    print("Dropping GP, homeW, homeL, awayW, awayL, confW, confL, min, attend, name, confID, franchID & arena in \033[1mTeams\033[0m...")
+
+    teams_df.drop('GP', axis=1, inplace=True)
+    teams_df.drop('homeW', axis=1, inplace=True)
+    teams_df.drop('homeL', axis=1, inplace=True)
+    teams_df.drop('awayW', axis=1, inplace=True)
+    teams_df.drop('awayL', axis=1, inplace=True)
+    teams_df.drop('confW', axis=1, inplace=True)
+    teams_df.drop('confL', axis=1, inplace=True)
+    teams_df.drop('min', axis=1, inplace=True)
+    teams_df.drop('attend', axis=1, inplace=True)
+    teams_df.drop('arena', axis=1, inplace=True)
+    teams_df.drop('name', axis=1, inplace=True)
+    teams_df.drop('franchID', axis=1, inplace=True)
+    teams_df.drop('confID', axis=1, inplace=True)
+    
+    print("Creating attribute winrate \033[1mTeams\033[0m...")
+    #teams_df["Winrate"] = teams_df["won"] / (teams_df["won"] + teams_df["lost"])
+    
+    print("Dropping won & lost in \033[1mTeams\033[0m...")
+    #teams_df.drop('won', axis=1, inplace=True)
+    #teams_df.drop('lost', axis=1, inplace=True)
+    
+    teams_df.drop('firstRound', axis=1, inplace=True)
+    teams_df.drop('semis', axis=1, inplace=True)
+    teams_df.drop('finals', axis=1, inplace=True)
+    
+    teams_post.drop('lgID',axis = 1, inplace = True)
+    
+
+    merged_df = pd.merge(teams_df, teams_post, on=['tmID', 'year'], how='left')
+    merged_df['W'].fillna(0, inplace=True)
+    merged_df['L'].fillna(0, inplace=True)
+    
+    merged_df = merged_df.sort_values(by=['tmID', 'year'])
+    
+    print("Converting Target PLAYOFF to binary on\033[1mTeams\033[0m...")
+    merged_df['playoff'] = merged_df['playoff'].replace({'Y': 1, 'N': 0})
+    
+    def calculate_cumulative_sum(group):
+        return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0)
+    
+    def calculate_cumulative_mean(group):
+        return group.shift(1).rolling(min_periods=1, window=past_years).mean().fillna(0)
+    
+    merged_df = merged_df.sort_values(by=['tmID', 'year'])
+    
+    mean_attrs = ['rank', 'o_fgm', 'o_fga', 'o_ftm', 'o_fta', 'o_3pm', 'o_3pa', 'o_oreb',
+                      'o_dreb', 'o_reb', 'o_asts', 'o_pf', 'o_stl', 'o_to', 'o_blk', 'o_pts', 'd_fgm',
+                      'd_fga', 'd_ftm', 'd_fta', 'd_3pm', 'd_3pa', 'd_oreb', 'd_dreb', 'd_reb', 'd_asts',
+                      'd_pf', 'd_stl', 'd_to', 'd_blk', 'd_pts']
+    
+    sum_attrs =  ['won', 'lost', 'W', 'L']
+    
+    for attr in mean_attrs:
+        merged_df[attr] = merged_df.groupby('tmID')[attr].transform(calculate_cumulative_mean)
+    
+    for attr in sum_attrs:
+        merged_df[attr] = merged_df.groupby('tmID')[attr].transform(calculate_cumulative_sum)
+    
+    print("Creating attribute winrate \033[1mTeams\033[0m...")
+    merged_df["Winrate"] = np.where((merged_df['won'] + merged_df['lost']) > 0,
+                                       merged_df['won'] / (merged_df['won'] + merged_df['lost']),
+                                       0)
+    
+    print("Creating attribute PlayOffs winrate \033[1mTeams\033[0m...")
+    merged_df["PO_Winrate"] = np.where((merged_df['W'] + merged_df['L']) > 0,
+                                       merged_df['W'] / (merged_df['W'] + merged_df['L']),
+                                       0)
+    
+    merged_df.drop('W',axis = 1, inplace = True)
+    merged_df.drop('L',axis = 1, inplace = True)
+    merged_df.drop('won',axis = 1, inplace = True)
+    merged_df.drop('lost',axis = 1, inplace = True)
+
+    return merged_df
+    
 
 
 def custom_agg(group):
