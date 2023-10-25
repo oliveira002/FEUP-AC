@@ -336,14 +336,14 @@ def group_coaches(df):
     
     return new_df
 
-def ranking_players(df_players_info, df_players, df_teams):
+def feature_importance_players(df_players_info, df_players, df_teams):
     # Merge the DataFrames
     merged_df = pd.merge(df_players_info, df_players, left_on='playerID', right_on='bioID', how='inner')
 
 
     merged_df = pd.merge(merged_df, df_teams[['tmID', 'year', 'playoff']], left_on=['tmID', 'year'], right_on=['tmID', 'year'], how='inner')
  
-
+    
     position_features = {
     'G': ['points', 'assists', 'steals', 'turnovers', 'minutes'],
     'C-F': ['points', 'assists', 'steals', 'turnovers', 'minutes'],
@@ -355,15 +355,17 @@ def ranking_players(df_players_info, df_players, df_teams):
     }
 
 
-    all_features = ['minutes', 'points', 'oRebounds', 'dRebounds', 'rebounds',
+    all_features = ['PPM', 'oRebounds', 'dRebounds', 'rebounds',
                 'assists', 'steals', 'blocks', 'turnovers', 'PF', 'fg%', 'ft%',
                  '3pt%', 'dq', 'player_awards','PER']
  
     # %fg = fgMade/fgAttempted, %ft = ftMade/ftAttempted, %3pt = threeMade/threeAttempted, care for 0/0
+    merged_df['PPM'] = np.where(merged_df['minutes'] == 0, 0, merged_df['points'] / merged_df['minutes'])
     merged_df['fg%'] = np.where(merged_df['fgAttempted'] == 0, 0, merged_df['fgMade'] / merged_df['fgAttempted'])
     merged_df['ft%'] = np.where(merged_df['ftAttempted'] == 0, 0, merged_df['ftMade'] / merged_df['ftAttempted'])
     merged_df['3pt%'] = np.where(merged_df['threeAttempted'] == 0, 0, merged_df['threeMade'] / merged_df['threeAttempted'])
     merged_df['playoff'] = np.where(merged_df['playoff'] == 'Y', 1, 0)    
+    merged_df['PostPPM'] = np.where(merged_df['PostMinutes'] == 0, 0, merged_df['PostPoints'] / merged_df['PostMinutes'])
     merged_df['Postfg%'] = np.where(merged_df['PostfgAttempted'] == 0, 0, merged_df['PostfgMade'] / merged_df['PostfgAttempted'])
     merged_df['Postft%'] = np.where(merged_df['PostftAttempted'] == 0, 0, merged_df['PostftMade'] / merged_df['PostftAttempted'])
     merged_df['Post3pt%'] = np.where(merged_df['PostthreeAttempted'] == 0, 0, merged_df['PostthreeMade'] / merged_df['PostthreeAttempted'])
@@ -403,5 +405,98 @@ def ranking_players(df_players_info, df_players, df_teams):
         print(f"Feature importance for {position}:")
         for feature, importance in sorted(feature_importance[position].items(), key=lambda x: x[1], reverse=True):
             print(f"{feature}: {importance}")
+
+    return feature_importance, merged_df
+
+def calculate_player_rating(row, feature_importance):
+    position = row['pos']
+    year = row['year']
+
+    # Get feature importance for the player's position
+    position_importance = feature_importance.get(position, {})
+
+    # Sort features by importance and select the top 5
+    top_features = sorted(position_importance, key=position_importance.get, reverse=True)[:5]
+    negative = ['turnovers', 'dq', 'PF']
+    top_features = [feature for feature in top_features if feature not in negative]
+    negative_features = [feature for feature in top_features if feature in negative]
+
+
+    # Calculate the player rating as the sum of the top 5 features
+    rating = sum(row[feature] * position_importance[feature] for feature in top_features) - sum(row[feature] * position_importance[feature] for feature in negative_features)
+ 
+    return rating
+
+def ranking_players(feature_importance, df_new_players):
+    df_new_players['rating'] = df_new_players.apply(calculate_player_rating, axis=1, args=(feature_importance,))
+    df_new_players = df_new_players.sort_values(by='rating', ascending=False)
+    
+    df_new_players = df_new_players[['playerID', 'year', 'rating']]
+
+    return df_new_players
+
+def ranking_playoff_players(feature_importance, df_new_players):
+    df_new_players['PostPER'] = ((df_new_players['PostfgMade'] * 85.910) + (df_new_players['PostSteals'] * 53.897) + (df_new_players['PostthreeMade'] * 51.757) + (df_new_players['PostftMade'] * 46.845) + (df_new_players['PostBlocks'] * 39.190) + (df_new_players['PostoRebounds'] * 39.190) + (df_new_players['PostAssists'] * 34.677) + (df_new_players['PostdRebounds'] * 14.707) - (df_new_players['PostPF'] * 17.174) - ((df_new_players['PostftAttempted'] - df_new_players['PostftMade']) * 20.091) - ((df_new_players['PostfgAttempted'] - df_new_players['PostfgMade']) * 39.190) - (df_new_players['PostTurnovers'] * 53.897)) * (np.where(df_new_players['PostMinutes'] == 0, 0, 1 / df_new_players['PostMinutes']))
+    dic = {'GP': 'PostGP', 'GS': 'PostGS', 'minutes': 'PostMinutes', 'points': 'PostPoints', 'oRebounds': 'PostoRebounds', 'dRebounds': 'PostdRebounds', 'rebounds': 'PostRebounds', 'assists': 'PostAssists', 'steals': 'PostSteals', 'blocks': 'PostBlocks', 'turnovers': 'PostTurnovers', 'PF': 'PostPF', 'fg%': 'Postfg%', 'ft%': 'Postft%', '3pt%': 'Post3pt%', 'dq': 'PostDQ', 'player_awards': 'player_awards', 'PER': 'PostPER', 'PPM': 'PostPPM'}
+    feature_importance_post = {}
+    for position, features in feature_importance.items():
+        feature_importance_post[position] = {}
+        for feature, importance in features.items():
+            feature_importance_post[position][dic[feature]] = importance
+    
+
+    # sort for player and then for year
+    df_new_players['PostRating'] = df_new_players.apply(calculate_player_rating, axis=1, args=(feature_importance_post,))
+    df_new_players = df_new_players.sort_values(by='playerID', ascending=False)
+
+    df_new_players = df_new_players[['playerID', 'year', 'PostRating']]
+    return df_new_players
+
+def calculate_power_rating(group):
+    # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
+
+    # Calculate the sum of the player ratings using the formula above
+    player_rating_sum = (0.5 * group['rating'] + 0.5 * group['PostRating']) / group['minutes']
+
+    
+    return player_rating_sum.sum()
+
+def team_power_rating(df_teams, df_players):
+ 
+    columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
+    df_players = df_players[columns]
+    merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
+
+    # Calculate the player's contribution to the team based on their Rating, PostRating, and minutes
+    player_contributions = (0.5 * merged_data['rating'] + 0.5 * merged_data['PostRating']) / merged_data['minutes']
+    
+    # Group by year, team, and position, and calculate power rating
+    team_power_ratings = player_contributions.groupby([merged_data['year'], merged_data['tmID'], merged_data['pos']]).sum().reset_index()
+    team_power_ratings.columns = ['year', 'tmID', 'pos', 'PowerRating']
+ 
+    # Merge the power ratings with the team DataFrame
+    team_data = pd.merge(df_teams, team_power_ratings, on=['year', 'tmID'], how='left')
+
+    # Pivot the table to have one row per team and columns for each position's power rating
+    power_rating_pivot = team_data.pivot(index=['year', 'tmID'], columns='pos', values='PowerRating').reset_index()
+
+    # Fill NaN values with 0 if necessary
+    power_rating_pivot.fillna(0, inplace=True)
+
+    # Calculate the overall power rating for each team by summing the position ratings
+    position_columns = ['G', 'C-F', 'C', 'F', 'F-C', 'F-G', 'G-F']
+    power_rating_pivot['OverallPowerRating'] = power_rating_pivot[position_columns].sum(axis=1)
+    position_counts = (power_rating_pivot[position_columns] != 0).sum(axis=1)
+    power_rating_pivot['OverallPowerRating'] /= position_counts.replace(0, 1)
+
+    power_rating_pivot = pd.merge(power_rating_pivot, df_teams[['year', 'tmID', 'playoff']], on=['year', 'tmID'], how='left')
+    
+    return power_rating_pivot
+
+
+
+
+
+
 
 
