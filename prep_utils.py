@@ -173,7 +173,7 @@ def prepare_player_teams(df,df_awards,past_years):
     df = df.groupby(['playerID', 'year']).apply(players_team_agg).reset_index()
     
     def calculate_cumulative_sum(group):
-        return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0)
+        return group.shift(1).rolling(min_periods=1, window=past_years).mean().fillna(0)
     
     df = df.sort_values(by=['playerID', 'year'])
     
@@ -306,6 +306,7 @@ def prepare_teams(teams_df):
 
     teams_df.drop('tmORB', axis=1, inplace=True)
     teams_df.drop('tmDRB', axis=1, inplace=True)
+    teams_df.drop('seeded', axis=1, inplace=True)
     teams_df.drop('tmTRB', axis=1, inplace=True)
     teams_df.drop('opptmORB', axis=1, inplace=True)
     teams_df.drop('opptmDRB', axis=1, inplace=True)
