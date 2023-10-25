@@ -279,13 +279,7 @@ def prepare_teams(teams_df, teams_post, past_years):
     teams_df.drop('name', axis=1, inplace=True)
     teams_df.drop('franchID', axis=1, inplace=True)
     teams_df.drop('confID', axis=1, inplace=True)
-    
-    print("Creating attribute winrate \033[1mTeams\033[0m...")
-    #teams_df["Winrate"] = teams_df["won"] / (teams_df["won"] + teams_df["lost"])
-    
-    print("Dropping won & lost in \033[1mTeams\033[0m...")
-    #teams_df.drop('won', axis=1, inplace=True)
-    #teams_df.drop('lost', axis=1, inplace=True)
+
     
     teams_df.drop('firstRound', axis=1, inplace=True)
     teams_df.drop('semis', axis=1, inplace=True)
@@ -325,6 +319,7 @@ def prepare_teams(teams_df, teams_post, past_years):
         merged_df[attr] = merged_df.groupby('tmID')[attr].transform(calculate_cumulative_sum)
     
     print("Creating attribute winrate \033[1mTeams\033[0m...")
+    print("Dropping won & lost in \033[1mTeams\033[0m...")
     merged_df["Winrate"] = np.where((merged_df['won'] + merged_df['lost']) > 0,
                                        merged_df['won'] / (merged_df['won'] + merged_df['lost']),
                                        0)
