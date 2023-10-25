@@ -5,6 +5,7 @@ Translation of business goals into data mining goals
 
 Data Understanding:
 Plot teams with the best winrate
+Plot Nr Teams playoffs, tendo em conta as confs
 - mais merdas
 
 
@@ -16,7 +17,12 @@ Just the coach that started the season
 - ver casos coach treinaram mais q 1 equipa no mm ano
 
 Teams:
-Number of players that left/joined (last year)
+- Number of players that left/joined (last year)
+- Remover GP
+- Win Rate c/ W & L, remover home, conf & away
+- Remover name, attend, arena, min (substituir por ter ido aos playoffs)
+- First Round, Semis & Final substituir pelo resultado nos playoffs
+
 
 Players:
 Ranking médio dos jogadores tendo em conta a posição em que jogam (ranking colégios)
