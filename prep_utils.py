@@ -452,8 +452,18 @@ def calculate_player_rating(row, feature_importance):
     rating = sum(row[feature] * position_importance[feature] for feature in top_features) - sum(row[feature] * position_importance[feature] for feature in negative_features)
  
     return rating
+def min_max_scaling(column):
+    min_val = column.min()
+    max_val = column.max()
+    return (column - min_val) / (max_val - min_val)
 
 def ranking_players(feature_importance, df_new_players):
+    # Normalize the data
+    columnsToNormalize = ['PPM','PER','PF','assists','turnovers','blocks','dRebounds','steals','rebounds','oRebounds','dq','player_awards']
+    for column in columnsToNormalize:
+        df_new_players[column] = min_max_scaling(df_new_players[column])
+
+
     df_new_players['rating'] = df_new_players.apply(calculate_player_rating, axis=1, args=(feature_importance,))
     df_new_players = df_new_players.sort_values(by='rating', ascending=False)
     
@@ -464,12 +474,17 @@ def ranking_players(feature_importance, df_new_players):
 def ranking_playoff_players(feature_importance, df_new_players):
     df_new_players['PostPER'] = ((df_new_players['PostfgMade'] * 85.910) + (df_new_players['PostSteals'] * 53.897) + (df_new_players['PostthreeMade'] * 51.757) + (df_new_players['PostftMade'] * 46.845) + (df_new_players['PostBlocks'] * 39.190) + (df_new_players['PostoRebounds'] * 39.190) + (df_new_players['PostAssists'] * 34.677) + (df_new_players['PostdRebounds'] * 14.707) - (df_new_players['PostPF'] * 17.174) - ((df_new_players['PostftAttempted'] - df_new_players['PostftMade']) * 20.091) - ((df_new_players['PostfgAttempted'] - df_new_players['PostfgMade']) * 39.190) - (df_new_players['PostTurnovers'] * 53.897)) * (np.where(df_new_players['PostMinutes'] == 0, 0, 1 / df_new_players['PostMinutes']))
     dic = {'GP': 'PostGP', 'GS': 'PostGS', 'minutes': 'PostMinutes', 'points': 'PostPoints', 'oRebounds': 'PostoRebounds', 'dRebounds': 'PostdRebounds', 'rebounds': 'PostRebounds', 'assists': 'PostAssists', 'steals': 'PostSteals', 'blocks': 'PostBlocks', 'turnovers': 'PostTurnovers', 'PF': 'PostPF', 'fg%': 'Postfg%', 'ft%': 'Postft%', '3pt%': 'Post3pt%', 'dq': 'PostDQ', 'player_awards': 'player_awards', 'PER': 'PostPER', 'PPM': 'PostPPM'}
+
+    # Normalize the data
+    columnsToNormalize = ['PostPPM','PostPER','PostPF','PostAssists','PostTurnovers','PostBlocks','PostdRebounds','PostSteals','PostRebounds','PostoRebounds','PostDQ','player_awards']
+    for column in columnsToNormalize:
+        df_new_players[column] = min_max_scaling(df_new_players[column])
+    print(df_new_players.to_string())  
     feature_importance_post = {}
     for position, features in feature_importance.items():
         feature_importance_post[position] = {}
         for feature, importance in features.items():
             feature_importance_post[position][dic[feature]] = importance
-    
 
     # sort for player and then for year
     df_new_players['PostRating'] = df_new_players.apply(calculate_player_rating, axis=1, args=(feature_importance_post,))
@@ -482,7 +497,7 @@ def calculate_power_rating(group):
     # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
 
     # Calculate the sum of the player ratings using the formula above
-    player_rating_sum = (0.5 * group['rating'] + 0.5 * group['PostRating']) * group['minutes']
+    player_rating_sum = (.8 * group['rating'] + .2 * group['PostRating']) * group['minutes']
 
     
     return player_rating_sum.sum()
