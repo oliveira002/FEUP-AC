@@ -264,7 +264,7 @@ def prepare_teams(teams_df, teams_post, past_years):
     teams_df.drop('opptmDRB', axis=1, inplace=True)
     teams_df.drop('opptmTRB', axis=1, inplace=True)
     
-    print("Dropping GP, homeW, homeL, awayW, awayL, confW, confL, min, attend, name, confID, franchID & arena in \033[1mTeams\033[0m...")
+    print("Dropping GP, homeW, homeL, awayW, awayL, confW, confL, attend, name, confID, franchID & arena in \033[1mTeams\033[0m...")
 
     teams_df.drop('GP', axis=1, inplace=True)
     teams_df.drop('homeW', axis=1, inplace=True)
@@ -273,7 +273,7 @@ def prepare_teams(teams_df, teams_post, past_years):
     teams_df.drop('awayL', axis=1, inplace=True)
     teams_df.drop('confW', axis=1, inplace=True)
     teams_df.drop('confL', axis=1, inplace=True)
-    teams_df.drop('min', axis=1, inplace=True)
+ 
     teams_df.drop('attend', axis=1, inplace=True)
     teams_df.drop('arena', axis=1, inplace=True)
     teams_df.drop('name', axis=1, inplace=True)
@@ -442,7 +442,7 @@ def calculate_player_rating(row, feature_importance):
     position_importance = feature_importance.get(position, {})
 
     # Sort features by importance and select the top 5
-    top_features = sorted(position_importance, key=position_importance.get, reverse=True)[:5]
+    top_features = sorted(position_importance, key=position_importance.get, reverse=True)
     negative = ['turnovers', 'dq', 'PF']
     top_features = [feature for feature in top_features if feature not in negative]
     negative_features = [feature for feature in top_features if feature in negative]
@@ -482,43 +482,40 @@ def calculate_power_rating(group):
     # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
 
     # Calculate the sum of the player ratings using the formula above
-    player_rating_sum = (0.5 * group['rating'] + 0.5 * group['PostRating']) / group['minutes']
+    player_rating_sum = (0.5 * group['rating'] + 0.5 * group['PostRating']) * group['minutes']
 
     
     return player_rating_sum.sum()
 
 def team_power_rating(df_teams, df_players):
- 
+
     columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
     df_players = df_players[columns]
     merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
 
-    # Calculate the player's contribution to the team based on their Rating, PostRating, and minutes
-    player_contributions = (0.5 * merged_data['rating'] + 0.5 * merged_data['PostRating']) / merged_data['minutes']
+    # Calculate the player's contribution to the team based on their Rating, PostRating
+    player_contributions = merged_data.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating).reset_index()
+  
     
-    # Group by year, team, and position, and calculate power rating
-    team_power_ratings = player_contributions.groupby([merged_data['year'], merged_data['tmID'], merged_data['pos']]).sum().reset_index()
-    team_power_ratings.columns = ['year', 'tmID', 'pos', 'PowerRating']
+  
+    columns = ['tmID','year','min','rank']
+   
+    df_team = df_teams[columns]
+    
+    # divide each player contribution by the team's total minutes played
+    player_power_ratings = pd.merge(player_contributions, df_team, on=['year', 'tmID'], how='inner')
+    
+    player_power_ratings['PowerRating'] = player_power_ratings[0] / player_power_ratings['min']
  
-    # Merge the power ratings with the team DataFrame
-    team_data = pd.merge(df_teams, team_power_ratings, on=['year', 'tmID'], how='left')
+    
+    team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['PowerRating'].sum().reset_index()
 
-    # Pivot the table to have one row per team and columns for each position's power rating
-    power_rating_pivot = team_data.pivot(index=['year', 'tmID'], columns='pos', values='PowerRating').reset_index()
+ 
+    
 
-    # Fill NaN values with 0 if necessary
-    power_rating_pivot.fillna(0, inplace=True)
-
-    # Calculate the overall power rating for each team by summing the position ratings
-    position_columns = ['G', 'C-F', 'C', 'F', 'F-C', 'F-G', 'G-F']
-    power_rating_pivot['OverallPowerRating'] = power_rating_pivot[position_columns].sum(axis=1)
-    position_counts = (power_rating_pivot[position_columns] != 0).sum(axis=1)
-    power_rating_pivot['OverallPowerRating'] /= position_counts.replace(0, 1)
-
-    power_rating_pivot = pd.merge(power_rating_pivot, df_teams[['year', 'tmID', 'playoff']], on=['year', 'tmID'], how='left')
+    power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
     
     return power_rating_pivot
-
 
 
 
