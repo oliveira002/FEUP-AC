@@ -37,7 +37,7 @@ def prepare_coaches(df, df_awards, past_years):
     # Creating attribute coach_po_win_ratio, meaning the playoffs win ratio of a coach until the current year
     df = df.sort_values(by=['coachID', 'year'])
     df['reg_season_win'] = df.groupby('coachID')['won'].transform(calculate_cumulative_sum)
-    df['reg_season_lost'] = df.groupby('coachID')['lost'].transform
+    df['reg_season_lost'] = df.groupby('coachID')['lost'].transform(calculate_cumulative_sum)
     
     
     df['total_playoffs_win'] = df.groupby('coachID')['post_wins'].transform(calculate_cumulative_sum)
@@ -479,7 +479,7 @@ def ranking_playoff_players(feature_importance, df_new_players):
     columnsToNormalize = ['PostPPM','PostPER','PostPF','PostAssists','PostTurnovers','PostBlocks','PostdRebounds','PostSteals','PostRebounds','PostoRebounds','PostDQ','player_awards']
     for column in columnsToNormalize:
         df_new_players[column] = min_max_scaling(df_new_players[column])
-    print(df_new_players.to_string())  
+
     feature_importance_post = {}
     for position, features in feature_importance.items():
         feature_importance_post[position] = {}
