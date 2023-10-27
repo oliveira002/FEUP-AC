@@ -26,18 +26,18 @@ def db_to_pandas(conn):
     df_teams.replace('', np.nan,inplace=True)
     
     return [df_awards, df_coaches, df_players_teams, df_players, df_series_post, df_teams_post, df_teams]
-    
+
 def prepare_coaches(df, df_awards, past_years):
     print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
     df.drop('lgID', axis=1, inplace=True)
     
     def calculate_cumulative_sum(group):
-        return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0)
+        return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0) 
     
     # Creating attribute coach_po_win_ratio, meaning the playoffs win ratio of a coach until the current year
     df = df.sort_values(by=['coachID', 'year'])
     df['reg_season_win'] = df.groupby('coachID')['won'].transform(calculate_cumulative_sum)
-    df['reg_season_lost'] = df.groupby('coachID')['lost'].transform(calculate_cumulative_sum)
+    df['reg_season_lost'] = df.groupby('coachID')['lost'].transform
     
     
     df['total_playoffs_win'] = df.groupby('coachID')['post_wins'].transform(calculate_cumulative_sum)
@@ -531,10 +531,60 @@ def team_power_rating(df_teams, df_players):
     power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
     
     return power_rating_pivot
+def calculate_cumulative_sum(group, past_years):
+    return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0) 
+
+def calculate_cumulative_mean(group, past_years):
+    return group.shift(1).rolling(min_periods=1, window=past_years).mean().fillna(0)
+
+def player_awards(df_players_teams, df_awards):
+  
+    player_years = pd.MultiIndex.from_product([df_players_teams['playerID'].unique(), df_players_teams['year'].unique()],
+                                             names=['playerID', 'year'])
+    result_df = pd.DataFrame(index=player_years).reset_index()
+
+    result_df = result_df.merge(df_awards, on=['playerID', 'year'], how='left')
+
+  
+    result_df['award'] = result_df['award'].apply(lambda x: 1 if isinstance(x, str) else 0)
+
+ 
+    result_df = result_df.groupby(['playerID', 'year'])['award'].sum().reset_index()
+
+
+
+
+    # Use calculate_cumulative_sum
+    result_df['cumulative_awards'] = result_df.groupby('playerID')['award'].transform(calculate_cumulative_sum, 10)
+
+    return result_df
 
 
 
 
 
+def team_ratings(sorted_power_ratings):
 
+    sorted_power_ratings['cum_Rating'] = sorted_power_ratings.groupby('tmID')['PowerRating'].transform(calculate_cumulative_mean, 10)
+    return sorted_power_ratings
 
+def teams_colleges(df_new_players, best_colleges, df_teams):
+
+    columns = ['year' ,'tmID','min', 'rank']
+
+    df_teams = df_teams[columns]
+
+    df_new_players = df_new_players.merge(df_teams, on=['year', 'tmID'], how='left')
+   
+
+    columns = ['playerID','tmID','year','college','minutes', 'min','rank']
+    df_new_players = df_new_players[columns]
+
+    df_new_players = df_new_players.merge(best_colleges, on='college', how='left')
+
+    df_new_players['CollegeRank'] = df_new_players['CollegeRank'] * df_new_players['minutes'] / df_new_players['min']
+    result_df = df_new_players.groupby(['tmID', 'year'])['CollegeRank'].sum().reset_index()
+
+    result_df = result_df.merge(df_teams, on=['year', 'tmID'], how='left')
+
+    return result_df
