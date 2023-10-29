@@ -508,6 +508,7 @@ def calculate_power_rating(group):
     
     return player_rating_sum.sum()
 
+
 def team_power_rating(df_teams, df_players):
 
     columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
@@ -532,7 +533,6 @@ def team_power_rating(df_teams, df_players):
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['PowerRating'].sum().reset_index()
 
     power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
-    
     return power_rating_pivot
 
 
@@ -600,3 +600,31 @@ def merge_all_data(df_coaches,df_teams,df_players_teams):
     merged_df = pd.merge(merged_df, final_players, on=['tmID', 'year'], how='left')
 
     return merged_df
+
+def team_player_ratings(df_players, df_teams):
+    columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
+    df_players = df_players[columns]
+    merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
+
+    # Calculate the player's contribution to the team based on their Rating, PostRating
+    player_contributions = merged_data.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating).reset_index()
+  
+    columns = ['tmID','year','min','rank']
+   
+    df_team = df_teams[columns]
+    
+    # divide each player contribution by the team's total minutes played
+    player_power_ratings = pd.merge(player_contributions, df_team, on=['year', 'tmID'], how='inner')
+    
+    player_power_ratings['PowerRating'] = player_power_ratings[0] / player_power_ratings['min']
+
+    # Order by player and year
+    player_power_ratings = player_power_ratings.sort_values(by=['playerID', 'year'])
+
+    
+    player_power_ratings['cum_power_rating'] = player_power_ratings.groupby('playerID')['PowerRating'].transform(calculate_cumulative_mean, 3)
+
+    # Group by team and year
+    team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['cum_power_rating'].sum().reset_index()
+
+    return team_power_ratings
