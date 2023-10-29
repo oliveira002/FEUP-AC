@@ -30,5 +30,11 @@ Número de prémios ganhos
 % de jogos ganhos
 
 As equipas e os jogadores têm os mesmos stats, no final vai ter os stats da equipa que jogou na season passada e a combinação dos stats dos jogadores atuais (tendo em conta o passado)
-Mais vale ficar so com o dos jogadores não?
+Secalhar interessa mais o que os jogadores que estão agora na equipa fizeram no passado do que os jogadores que estavam lá antes fizeram pela equipa
+
+Atributos Jogadores que dá para reduzir:
+- Offensive Rebounds & Defensive Rebounds (Tirar o Total) Ou Deixar So o Total
+- Players GP & Players GS 
+- Tudo o que tem X_Made & X_Attempted substituir por W/R
+- Pode-se fazer uma media ponderada dando mais peso ao playoffs com os da época regular
 
