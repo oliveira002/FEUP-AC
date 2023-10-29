@@ -7,6 +7,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import RFE
+from sklearn.linear_model import Lasso
+from sklearn.metrics import mean_squared_error
 
 
 
@@ -55,3 +57,16 @@ def model_with_rfe(model,x_train,x_test,y_train,y_test,n_features):
     y_pred_rfe = model.predict(x_test_rfe)
     accuracy_rfe = accuracy_score(y_test, y_pred_rfe)
     
+
+def lasso_feature_selection(x_train,x_test,y_train,y_test,alpha):
+    lasso_model = Lasso(alpha=alpha)
+    lasso_model.fit(x_train, y_train)
+    y_pred = lasso_model.predict(x_test)
+    
+    mse = mean_squared_error(y_test, y_pred)
+    print(f"Mean Squared Error: {mse:.2f}")
+  
+    # Print the coefficients of the selected features
+    selected_features = [feature for feature, coef in zip(x_train.columns, lasso_model.coef_) if coef != 0]
+    print(f"Selected Features: {selected_features}")
+        
