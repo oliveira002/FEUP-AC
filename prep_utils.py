@@ -599,14 +599,17 @@ def group_players_stats_by_team(df_players):
     result_df.columns = ['tmID', 'year'] + [f'p_{col}' for col in result_df.columns[2:]]
     return result_df
 
-def merge_all_data(df_coaches,df_teams,df_players_teams):
+def merge_all_data(df_coaches,df_teams,df_players_teams,ratings):
     merged_df = pd.merge(df_teams, df_coaches, on=['tmID', 'year'], how='left')
     final_players = group_players_stats_by_team(df_players_teams)
     merged_df = pd.merge(merged_df, final_players, on=['tmID', 'year'], how='left')
+    merged_df = pd.merge(merged_df, ratings, on=['tmID', 'year'], how='left')
 
     return merged_df
 
-def team_player_ratings(df_players, df_teams):
+def team_player_ratings(df__players, df__teams):
+    df_players = df__players.copy()
+    df_teams = df__teams.copy()
     columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
     df_players = df_players[columns]
     merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
