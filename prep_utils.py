@@ -531,9 +531,6 @@ def team_power_rating(df_teams, df_players):
     
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['PowerRating'].sum().reset_index()
 
- 
-    
-
     power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
     
     return power_rating_pivot
@@ -594,7 +591,7 @@ def group_players_stats_by_team(df_players):
     df_copy = df_players.copy()
     df_copy.drop('playerID', axis=1, inplace=True)
     result_df = df_copy.groupby(['tmID', 'year']).sum().reset_index()
-    result_df.columns = ['tmID', 'year'] + [f'players_{col}' for col in result_df.columns[2:]]
+    result_df.columns = ['tmID', 'year'] + [f'p_{col}' for col in result_df.columns[2:]]
     return result_df
 
 def merge_all_data(df_coaches,df_teams,df_players_teams):
@@ -602,5 +599,4 @@ def merge_all_data(df_coaches,df_teams,df_players_teams):
     final_players = group_players_stats_by_team(df_players_teams)
     merged_df = pd.merge(merged_df, final_players, on=['tmID', 'year'], how='left')
 
-    
     return merged_df
