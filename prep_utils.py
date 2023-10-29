@@ -37,8 +37,8 @@ def prepare_coaches(df, df_awards, past_years):
     
     # Creating attribute coach_po_win_ratio, meaning the playoffs win ratio of a coach until the current year
     df_copy = df_copy.sort_values(by=['coachID', 'year'])
-    df_copy['reg_season_win'] = df_copy.groupby('coachID')['won'].transform(calculate_cumulative_sum)
-    df_copy['reg_season_lost'] = df_copy.groupby('coachID')['lost'].transform(calculate_cumulative_sum)
+    df_copy['total_reg_season_win'] = df_copy.groupby('coachID')['won'].transform(calculate_cumulative_sum)
+    df_copy['total_reg_season_lost'] = df_copy.groupby('coachID')['lost'].transform(calculate_cumulative_sum)
     
     
     df_copy['total_playoffs_win'] = df_copy.groupby('coachID')['post_wins'].transform(calculate_cumulative_sum)
@@ -48,14 +48,14 @@ def prepare_coaches(df, df_awards, past_years):
                                        df_copy['total_playoffs_win'] / (df_copy['total_playoffs_win'] + df_copy['total_playoffs_lost']),
                                        0)
     
-    df_copy['coach_reg_win_ratio'] = np.where((df_copy['reg_season_win'] + df_copy['reg_season_lost']) > 0,
-                                       df_copy['reg_season_win'] / (df_copy['reg_season_win'] + df_copy['reg_season_lost']),
+    df_copy['coach_reg_win_ratio'] = np.where((df_copy['total_reg_season_win'] + df_copy['total_reg_season_lost']) > 0,
+                                       df_copy['total_reg_season_win'] / (df_copy['total_reg_season_win'] + df_copy['total_reg_season_lost']),
                                        0)
 
     df_copy.drop('total_playoffs_win', axis=1, inplace=True)
     df_copy.drop('total_playoffs_lost', axis=1, inplace=True)
-    df_copy.drop('reg_season_win', axis=1, inplace=True)
-    df_copy.drop('reg_season_lost', axis=1, inplace=True)
+    df_copy.drop('total_reg_season_win', axis=1, inplace=True)
+    df_copy.drop('total_reg_season_lost', axis=1, inplace=True)
     
     
     playoffs_mask = (df_copy['post_wins'] != 0) | (df_copy['post_losses'] != 0)
@@ -88,8 +88,6 @@ def prepare_players_for_ranking(df_players, df_awards):
 
     df_players = player_award_count(df_players,df_awards, False)
     
-
-
     return df_players
 
 
@@ -323,6 +321,9 @@ def prepare_teams(teams_df, teams_post, past_years):
     for attr in sum_attrs:
         merged_df[attr] = merged_df.groupby('tmID')[attr].transform(calculate_cumulative_sum)
     
+    playoffs_mask = (merged_df['playoff'] != 0)
+    merged_df['team_playoffs_count'] = playoffs_mask.groupby(df_copy['tmID']).cumsum() - playoffs_mask.astype(int)
+    
     print("Creating attribute winrate \033[1mTeams\033[0m...")
     print("Dropping won & lost in \033[1mTeams\033[0m...")
     merged_df["Winrate"] = np.where((merged_df['won'] + merged_df['lost']) > 0,
@@ -536,6 +537,8 @@ def team_power_rating(df_teams, df_players):
     power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
     
     return power_rating_pivot
+
+
 def calculate_cumulative_sum(group, past_years):
     return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0) 
 
@@ -555,9 +558,6 @@ def player_awards(df_players_teams, df_awards):
 
  
     result_df = result_df.groupby(['playerID', 'year'])['award'].sum().reset_index()
-
-
-
 
     # Use calculate_cumulative_sum
     result_df['cumulative_awards'] = result_df.groupby('playerID')['award'].transform(calculate_cumulative_sum, 10)
@@ -589,3 +589,18 @@ def teams_colleges(df_new_players, best_colleges, df_teams):
     result_df = result_df.merge(df_teams, on=['year', 'tmID'], how='left')
 
     return result_df
+
+def group_players_stats_by_team(df_players):
+    df_copy = df_players.copy()
+    df_copy.drop('playerID', axis=1, inplace=True)
+    result_df = df_copy.groupby(['tmID', 'year']).sum().reset_index()
+    result_df.columns = ['tmID', 'year'] + [f'players_{col}' for col in result_df.columns[2:]]
+    return result_df
+
+def merge_all_data(df_coaches,df_teams,df_players_teams):
+    merged_df = pd.merge(df_teams, df_coaches, on=['tmID', 'year'], how='left')
+    final_players = group_players_stats_by_team(df_players_teams)
+    merged_df = pd.merge(merged_df, final_players, on=['tmID', 'year'], how='left')
+
+    
+    return merged_df

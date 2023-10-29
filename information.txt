@@ -9,7 +9,6 @@ Plot Nr Teams playoffs, tendo em conta as confs
 - mais merdas
 
 
-
 Coaches:
 Win-Rate of games and playoff games in previous years
 Number of Awards
@@ -17,6 +16,7 @@ Just the coach that started the season
 - ver casos coach treinaram mais q 1 equipa no mm ano
 
 Teams:
+- Number Times Went to playoffs
 - Number of players that left/joined (last year)
 - Remover GP
 - Win Rate c/ W & L, remover home, conf & away
@@ -29,4 +29,6 @@ Ranking médio dos jogadores tendo em conta a posição em que jogam (ranking co
 Número de prémios ganhos
 % de jogos ganhos
 
+As equipas e os jogadores têm os mesmos stats, no final vai ter os stats da equipa que jogou na season passada e a combinação dos stats dos jogadores atuais (tendo em conta o passado)
+Mais vale ficar so com o dos jogadores não?
 
