@@ -80,15 +80,16 @@ def prepare_coaches(df, df_awards, past_years):
 
 
 def prepare_players_for_ranking(df_players, df_awards):
-    df_playersnew = df_players.groupby(['playerID', 'year'])["stint"].idxmax()
+    df_copy = df_players.copy()
+    df_playersnew = df_copy.groupby(['playerID', 'year'])["stint"].idxmax()
 
-    df_players = df_players.loc[df_playersnew]
+    df_copy = df_copy.loc[df_playersnew]
 
-    df_players["player_awards"] = 0
+    df_copy["player_awards"] = 0
 
-    df_players = player_award_count(df_players,df_awards, False)
+    df_copy = player_award_count(df_copy,df_awards, False)
     
-    return df_players
+    return df_copy
 
 
 def teams_agg(group):
@@ -464,27 +465,29 @@ def min_max_scaling(column):
     return (column - min_val) / (max_val - min_val)
 
 def ranking_players(feature_importance, df_new_players):
+    df_copy = df_new_players.copy()
     # Normalize the data
     columnsToNormalize = ['PPM','PER','PF','assists','turnovers','blocks','dRebounds','steals','rebounds','oRebounds','dq','player_awards']
     for column in columnsToNormalize:
-        df_new_players[column] = min_max_scaling(df_new_players[column])
+        df_copy[column] = min_max_scaling(df_copy[column])
 
 
-    df_new_players['rating'] = df_new_players.apply(calculate_player_rating, axis=1, args=(feature_importance,))
-    df_new_players = df_new_players.sort_values(by='rating', ascending=False)
+    df_copy['rating'] = df_copy.apply(calculate_player_rating, axis=1, args=(feature_importance,))
+    df_copy = df_copy.sort_values(by='rating', ascending=False)
     
-    df_new_players = df_new_players[['playerID', 'year', 'rating']]
+    df_copy = df_copy[['playerID', 'year', 'rating']]
 
-    return df_new_players
+    return df_copy
 
 def ranking_playoff_players(feature_importance, df_new_players):
-    df_new_players['PostPER'] = ((df_new_players['PostfgMade'] * 85.910) + (df_new_players['PostSteals'] * 53.897) + (df_new_players['PostthreeMade'] * 51.757) + (df_new_players['PostftMade'] * 46.845) + (df_new_players['PostBlocks'] * 39.190) + (df_new_players['PostoRebounds'] * 39.190) + (df_new_players['PostAssists'] * 34.677) + (df_new_players['PostdRebounds'] * 14.707) - (df_new_players['PostPF'] * 17.174) - ((df_new_players['PostftAttempted'] - df_new_players['PostftMade']) * 20.091) - ((df_new_players['PostfgAttempted'] - df_new_players['PostfgMade']) * 39.190) - (df_new_players['PostTurnovers'] * 53.897)) * (np.where(df_new_players['PostMinutes'] == 0, 0, 1 / df_new_players['PostMinutes']))
+    df_copy = df_new_players.copy()
+    df_copy['PostPER'] = ((df_copy['PostfgMade'] * 85.910) + (df_copy['PostSteals'] * 53.897) + (df_copy['PostthreeMade'] * 51.757) + (df_copy['PostftMade'] * 46.845) + (df_copy['PostBlocks'] * 39.190) + (df_copy['PostoRebounds'] * 39.190) + (df_copy['PostAssists'] * 34.677) + (df_copy['PostdRebounds'] * 14.707) - (df_copy['PostPF'] * 17.174) - ((df_copy['PostftAttempted'] - df_copy['PostftMade']) * 20.091) - ((df_copy['PostfgAttempted'] - df_copy['PostfgMade']) * 39.190) - (df_copy['PostTurnovers'] * 53.897)) * (np.where(df_copy['PostMinutes'] == 0, 0, 1 / df_copy['PostMinutes']))
     dic = {'GP': 'PostGP', 'GS': 'PostGS', 'minutes': 'PostMinutes', 'points': 'PostPoints', 'oRebounds': 'PostoRebounds', 'dRebounds': 'PostdRebounds', 'rebounds': 'PostRebounds', 'assists': 'PostAssists', 'steals': 'PostSteals', 'blocks': 'PostBlocks', 'turnovers': 'PostTurnovers', 'PF': 'PostPF', 'fg%': 'Postfg%', 'ft%': 'Postft%', '3pt%': 'Post3pt%', 'dq': 'PostDQ', 'player_awards': 'player_awards', 'PER': 'PostPER', 'PPM': 'PostPPM'}
 
     # Normalize the data
     columnsToNormalize = ['PostPPM','PostPER','PostPF','PostAssists','PostTurnovers','PostBlocks','PostdRebounds','PostSteals','PostRebounds','PostoRebounds','PostDQ','player_awards']
     for column in columnsToNormalize:
-        df_new_players[column] = min_max_scaling(df_new_players[column])
+        df_copy[column] = min_max_scaling(df_copy[column])
 
     feature_importance_post = {}
     for position, features in feature_importance.items():
@@ -493,11 +496,11 @@ def ranking_playoff_players(feature_importance, df_new_players):
             feature_importance_post[position][dic[feature]] = importance
 
     # sort for player and then for year
-    df_new_players['PostRating'] = df_new_players.apply(calculate_player_rating, axis=1, args=(feature_importance_post,))
-    df_new_players = df_new_players.sort_values(by='playerID', ascending=False)
+    df_copy['PostRating'] = df_copy.apply(calculate_player_rating, axis=1, args=(feature_importance_post,))
+    df_copy = df_copy.sort_values(by='playerID', ascending=False)
 
-    df_new_players = df_new_players[['playerID', 'year', 'PostRating']]
-    return df_new_players
+    df_copy = df_copy[['playerID', 'year', 'PostRating']]
+    return df_copy
 
 def calculate_power_rating(group):
     # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
@@ -510,9 +513,11 @@ def calculate_power_rating(group):
 
 
 def team_power_rating(df_teams, df_players):
+    df_copy = df_players.copy()
+    dft_copy = df_teams.copy()
 
     columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
-    df_players = df_players[columns]
+    df_copy = df_copy[columns]
     merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
 
     # Calculate the player's contribution to the team based on their Rating, PostRating
@@ -522,7 +527,7 @@ def team_power_rating(df_teams, df_players):
   
     columns = ['tmID','year','min','rank']
    
-    df_team = df_teams[columns]
+    df_team = dft_copy[columns]
     
     # divide each player contribution by the team's total minutes played
     player_power_ratings = pd.merge(player_contributions, df_team, on=['year', 'tmID'], how='inner')
@@ -561,10 +566,10 @@ def player_awards(df_players_teams, df_awards):
 
     return result_df
 
-def team_ratings(sorted_power_ratings):
-
-    sorted_power_ratings['cum_Rating'] = sorted_power_ratings.groupby('tmID')['PowerRating'].transform(calculate_cumulative_mean, 10)
-    return sorted_power_ratings
+def team_ratings(sorted_power_ratings, num_years):
+    df_copy = sorted_power_ratings.copy()
+    df_copy['cum_Rating'] = df_copy.groupby('tmID')['PowerRating'].transform(calculate_cumulative_mean, num_years)
+    return df_copy
 
 def teams_colleges(df_new_players, best_colleges, df_teams):
 
@@ -628,3 +633,25 @@ def team_player_ratings(df_players, df_teams):
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['cum_power_rating'].sum().reset_index()
 
     return team_power_ratings
+def calc_team_power_rat(df_players_teams,df_awards,df_players,df_teams,num_years):
+    
+    df_new_player_rankings = prepare_players_for_ranking(df_players_teams, df_awards)
+    feature_importance, df_new_players = feature_importance_players(df_new_player_rankings, df_players,df_teams)
+    
+    df_copy = df_new_players.copy()
+    
+    df_rating_regular = ranking_players(feature_importance, df_copy)
+    df_rating_playoffs = ranking_playoff_players(feature_importance, df_copy)
+    
+    df_new_players = pd.merge(df_new_players, df_rating_regular, on=['playerID', 'year'], how='left')
+    df_new_players = pd.merge(df_new_players, df_rating_playoffs, on=['playerID', 'year'], how='left')
+    
+
+    power_ratings = team_power_rating(df_teams, df_new_players)
+    sorted_power_ratings = power_ratings.sort_values(by=['year', 'PowerRating'], ascending=[True, False])
+    
+    teams = team_ratings(sorted_power_ratings,num_years)
+    
+    teams = teams.drop(columns=['PowerRating', 'playoff', 'rank'], axis = 1)
+    
+    return teams
