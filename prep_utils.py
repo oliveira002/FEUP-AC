@@ -28,54 +28,55 @@ def db_to_pandas(conn):
     return [df_awards, df_coaches, df_players_teams, df_players, df_series_post, df_teams_post, df_teams]
 
 def prepare_coaches(df, df_awards, past_years):
+    df_copy = df.copy()
     print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
-    df.drop('lgID', axis=1, inplace=True)
+    df_copy.drop('lgID', axis=1, inplace=True)
     
     def calculate_cumulative_sum(group):
         return group.shift(1).rolling(min_periods=1, window=past_years).sum().fillna(0) 
     
     # Creating attribute coach_po_win_ratio, meaning the playoffs win ratio of a coach until the current year
-    df = df.sort_values(by=['coachID', 'year'])
-    df['reg_season_win'] = df.groupby('coachID')['won'].transform(calculate_cumulative_sum)
-    df['reg_season_lost'] = df.groupby('coachID')['lost'].transform(calculate_cumulative_sum)
+    df_copy = df_copy.sort_values(by=['coachID', 'year'])
+    df_copy['reg_season_win'] = df_copy.groupby('coachID')['won'].transform(calculate_cumulative_sum)
+    df_copy['reg_season_lost'] = df_copy.groupby('coachID')['lost'].transform(calculate_cumulative_sum)
     
     
-    df['total_playoffs_win'] = df.groupby('coachID')['post_wins'].transform(calculate_cumulative_sum)
-    df['total_playoffs_lost'] = df.groupby('coachID')['post_losses'].transform(calculate_cumulative_sum)
+    df_copy['total_playoffs_win'] = df_copy.groupby('coachID')['post_wins'].transform(calculate_cumulative_sum)
+    df_copy['total_playoffs_lost'] = df_copy.groupby('coachID')['post_losses'].transform(calculate_cumulative_sum)
     
-    df['coach_po_win_ratio'] = np.where((df['total_playoffs_win'] + df['total_playoffs_lost']) > 0,
-                                       df['total_playoffs_win'] / (df['total_playoffs_win'] + df['total_playoffs_lost']),
+    df_copy['coach_po_win_ratio'] = np.where((df_copy['total_playoffs_win'] + df_copy['total_playoffs_lost']) > 0,
+                                       df_copy['total_playoffs_win'] / (df_copy['total_playoffs_win'] + df_copy['total_playoffs_lost']),
                                        0)
     
-    df['coach_reg_win_ratio'] = np.where((df['reg_season_win'] + df['reg_season_lost']) > 0,
-                                       df['reg_season_win'] / (df['reg_season_win'] + df['reg_season_lost']),
+    df_copy['coach_reg_win_ratio'] = np.where((df_copy['reg_season_win'] + df_copy['reg_season_lost']) > 0,
+                                       df_copy['reg_season_win'] / (df_copy['reg_season_win'] + df_copy['reg_season_lost']),
                                        0)
 
-    df.drop('total_playoffs_win', axis=1, inplace=True)
-    df.drop('total_playoffs_lost', axis=1, inplace=True)
-    df.drop('reg_season_win', axis=1, inplace=True)
-    df.drop('reg_season_lost', axis=1, inplace=True)
+    df_copy.drop('total_playoffs_win', axis=1, inplace=True)
+    df_copy.drop('total_playoffs_lost', axis=1, inplace=True)
+    df_copy.drop('reg_season_win', axis=1, inplace=True)
+    df_copy.drop('reg_season_lost', axis=1, inplace=True)
     
     
-    playoffs_mask = (df['post_wins'] != 0) | (df['post_losses'] != 0)
-    df['playoffs_count'] = playoffs_mask.groupby(df['coachID']).cumsum() - playoffs_mask.astype(int)
+    playoffs_mask = (df_copy['post_wins'] != 0) | (df_copy['post_losses'] != 0)
+    df_copy['playoffs_count'] = playoffs_mask.groupby(df_copy['coachID']).cumsum() - playoffs_mask.astype(int)
 
 
-    df["coach_awards"] = 0
+    df_copy["coach_awards"] = 0
     
     print("Creating attribute coach previous regular season win ratio...")
     print("Creating attribute coach playoffs win ratio...")
     print("Creating attribute coach playoffs count...")
     print("Creating attribute coach awards count...")
     
-    df = coach_award_count(df,df_awards)
+    df_copy = coach_award_count(df_copy,df_awards)
     
     print("Dropping attribute post_wins..")
     print("Dropping attribute post_losses..")    
     print("Dropping attribute won..")    
     print("Dropping attribute lost..")    
 
-    return df
+    return df_copy
 
 
 def prepare_players_for_ranking(df_players, df_awards):
@@ -120,30 +121,31 @@ def players_team_agg(group):
 
 
 def prepare_player_teams(df,df_awards,past_years):
-    print("Dropping Attribute lgID in \033[1mCoaches\033[0m...")
-    df.drop('lgID', axis=1, inplace=True)
+    df_copy = df.copy()
+    print("Dropping Attribute lgID in \033[1mPlayers_Teams\033[0m...")
+    df_copy.drop('lgID', axis=1, inplace=True)
     
-    df = df.groupby(['playerID', 'year']).apply(players_team_agg).reset_index()
+    df_copy = df_copy.groupby(['playerID', 'year']).apply(players_team_agg).reset_index()
     
     def calculate_cumulative_sum(group):
         return group.shift(1).rolling(min_periods=1, window=past_years).mean().fillna(0)
     
-    df = df.sort_values(by=['playerID', 'year'])
+    df_copy = df_copy.sort_values(by=['playerID', 'year'])
     
     attributes = ["GP","GS","minutes","points","oRebounds","dRebounds","rebounds","assists","steals","blocks","turnovers","PF","fgAttempted","fgMade","ftAttempted","ftMade","threeAttempted","threeMade","dq","PostGP","PostGS","PostMinutes","PostPoints","PostoRebounds","PostdRebounds","PostRebounds","PostAssists","PostSteals","PostBlocks","PostTurnovers","PostPF","PostfgAttempted","PostfgMade","PostftAttempted","PostftMade","PostthreeAttempted","PostthreeMade","PostDQ"]
     
     for attr in attributes:
         
-        df[attr] = df.groupby('playerID')[attr].transform(calculate_cumulative_sum)
+        df_copy[attr] = df_copy.groupby('playerID')[attr].transform(calculate_cumulative_sum)
     
-    df["player_awards"] = 0
+    df_copy["player_awards"] = 0
     
-    df = player_award_count(df,df_awards, True)
+    df_copy = player_award_count(df_copy,df_awards, True)
     
     
-    print(df.to_string())
+    print(df_copy.to_string())
     
-    return df
+    return df_copy
 
 
 def player_award_count(df,df_awards,previous_years):
@@ -173,33 +175,34 @@ def coach_award_count(df,df_awards):
     return df
 
 def prepare_players(df, df_players_teams):
+    df_copy = df.copy()
     print("\nRemoving players from \033[1mPlayers\033[0m without any single played game...")
-    df = df[df['bioID'].isin(df_players_teams['playerID'])]
+    df_copy = df_copy[df_copy['bioID'].isin(df_players_teams['playerID'])]
     
     print("Dropping Attributes firstseason & lastseason in \033[1mPlayers\033[0m...")
-    df = df.drop('firstseason', axis=1)
-    df = df.drop('lastseason', axis=1)
+    df_copy = df_copy.drop('firstseason', axis=1)
+    df_copy = df_copy.drop('lastseason', axis=1)
     
     print("\n\033[1mPlayers Null Verification:\033[0m")
-    print(df.isna().sum())
+    print(df_copy.isna().sum())
     
-    df = df.drop('collegeOther', axis=1)
+    df_copy = df_copy.drop('collegeOther', axis=1)
     
-    num_weight = (df['weight'] == 0).sum()
-    num_height = (df['height'] == 0).sum()
+    num_weight = (df_copy['weight'] == 0).sum()
+    num_height = (df_copy['height'] == 0).sum()
     
     print(f"\n\033[1mNull Entries weight\033[0m - {num_weight}")
     print(f"\033[1mNull Entries height\033[0m - {num_height}")
     
-    average_weight = df[df['weight'] != 0]['weight'].mean()
-    average_height = df[df['height'] != 0]['height'].mean()
+    average_weight = df_copy[df_copy['weight'] != 0]['weight'].mean()
+    average_height = df_copy[df_copy['height'] != 0]['height'].mean()
     
-    df['weight'] = df['weight'].replace(0, average_weight)
-    df['height'] = df['height'].replace(0, average_height)
+    df_copy['weight'] = df_copy['weight'].replace(0, average_weight)
+    df_copy['height'] = df_copy['height'].replace(0, average_height)
 
 
-    num_weight = (df['weight'] == 0).sum()
-    num_height = (df['height'] == 0).sum()
+    num_weight = (df_copy['weight'] == 0).sum()
+    num_height = (df_copy['height'] == 0).sum()
     
     print("\n\033[1mReplacing Height & Weight Null Values by its average...\033[0m")
     print(f"\033[1mNull Entries weight\033[0m - {num_weight}")
@@ -244,51 +247,53 @@ def best_colleges(player_teams_df, teams_df, players_df):
     return college_playoff_sum
 
 def prepare_teams(teams_df, teams_post, past_years):
+    df_copy = teams_df.copy()
+    df_post_copy = teams_post.copy()
     print("Dropping divID in \033[1mTeams\033[0m...")
 
-    teams_df.drop('divID', axis=1, inplace=True)
+    df_copy.drop('divID', axis=1, inplace=True)
     
     print("Dropping ldID in \033[1mTeams\033[0m...")
-    teams_df.drop('lgID', axis=1, inplace=True)
+    df_copy.drop('lgID', axis=1, inplace=True)
 
     print("Dropping seeded in \033[1mTeams\033[0m...")
 
-    teams_df.drop('seeded', axis=1, inplace=True)
+    df_copy.drop('seeded', axis=1, inplace=True)
 
     print("Dropping tmORB, tmDRB, tmTRB, opptmORB, opptmDRB, opptmTRB in \033[1mTeams\033[0m...")
 
-    teams_df.drop('tmORB', axis=1, inplace=True)
-    teams_df.drop('tmDRB', axis=1, inplace=True)
-    teams_df.drop('tmTRB', axis=1, inplace=True)
-    teams_df.drop('opptmORB', axis=1, inplace=True)
-    teams_df.drop('opptmDRB', axis=1, inplace=True)
-    teams_df.drop('opptmTRB', axis=1, inplace=True)
+    df_copy.drop('tmORB', axis=1, inplace=True)
+    df_copy.drop('tmDRB', axis=1, inplace=True)
+    df_copy.drop('tmTRB', axis=1, inplace=True)
+    df_copy.drop('opptmORB', axis=1, inplace=True)
+    df_copy.drop('opptmDRB', axis=1, inplace=True)
+    df_copy.drop('opptmTRB', axis=1, inplace=True)
     
     print("Dropping GP, homeW, homeL, awayW, awayL, confW, confL, attend, name, confID, franchID & arena in \033[1mTeams\033[0m...")
 
-    teams_df.drop('GP', axis=1, inplace=True)
-    teams_df.drop('homeW', axis=1, inplace=True)
-    teams_df.drop('homeL', axis=1, inplace=True)
-    teams_df.drop('awayW', axis=1, inplace=True)
-    teams_df.drop('awayL', axis=1, inplace=True)
-    teams_df.drop('confW', axis=1, inplace=True)
-    teams_df.drop('confL', axis=1, inplace=True)
+    df_copy.drop('GP', axis=1, inplace=True)
+    df_copy.drop('homeW', axis=1, inplace=True)
+    df_copy.drop('homeL', axis=1, inplace=True)
+    df_copy.drop('awayW', axis=1, inplace=True)
+    df_copy.drop('awayL', axis=1, inplace=True)
+    df_copy.drop('confW', axis=1, inplace=True)
+    df_copy.drop('confL', axis=1, inplace=True)
  
-    teams_df.drop('attend', axis=1, inplace=True)
-    teams_df.drop('arena', axis=1, inplace=True)
-    teams_df.drop('name', axis=1, inplace=True)
-    teams_df.drop('franchID', axis=1, inplace=True)
-    teams_df.drop('confID', axis=1, inplace=True)
+    df_copy.drop('attend', axis=1, inplace=True)
+    df_copy.drop('arena', axis=1, inplace=True)
+    df_copy.drop('name', axis=1, inplace=True)
+    df_copy.drop('franchID', axis=1, inplace=True)
+    df_copy.drop('confID', axis=1, inplace=True)
 
     
-    teams_df.drop('firstRound', axis=1, inplace=True)
-    teams_df.drop('semis', axis=1, inplace=True)
-    teams_df.drop('finals', axis=1, inplace=True)
+    df_copy.drop('firstRound', axis=1, inplace=True)
+    df_copy.drop('semis', axis=1, inplace=True)
+    df_copy.drop('finals', axis=1, inplace=True)
     
-    teams_post.drop('lgID',axis = 1, inplace = True)
+    df_post_copy.drop('lgID',axis = 1, inplace = True)
     
 
-    merged_df = pd.merge(teams_df, teams_post, on=['tmID', 'year'], how='left')
+    merged_df = pd.merge(df_copy, df_post_copy, on=['tmID', 'year'], how='left')
     merged_df['W'].fillna(0, inplace=True)
     merged_df['L'].fillna(0, inplace=True)
     
@@ -558,10 +563,6 @@ def player_awards(df_players_teams, df_awards):
     result_df['cumulative_awards'] = result_df.groupby('playerID')['award'].transform(calculate_cumulative_sum, 10)
 
     return result_df
-
-
-
-
 
 def team_ratings(sorted_power_ratings):
 
