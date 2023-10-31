@@ -7,7 +7,10 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import RFE
+from scipy.stats import pointbiserialr
 from sklearn.linear_model import Lasso
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
 
@@ -70,3 +73,93 @@ def lasso_feature_selection(x_train,x_test,y_train,y_test,alpha):
     selected_features = [feature for feature, coef in zip(x_train.columns, lasso_model.coef_) if coef != 0]
     print(f"Selected Features: {selected_features}")
         
+
+def fs_teams(df_teams):
+    df_copy = df_teams.copy()
+    attributes = ['o_fg', 'o_ft', 'o_3p', 'd_fg', 'd_ft', 'd_3p']
+    
+    for attr in attributes:
+        made_col = f'{attr}_pct'
+        df_copy[made_col] = np.where(df_copy[f'{attr}a'] > 0, df_copy[f'{attr}m'] / df_copy[f'{attr}a'], 0)
+    
+    df_copy['o_reb_pct'] =  np.where(df_copy['o_reb'] > 0, df_copy['o_oreb'] / df_copy['o_reb'], 0)
+    df_copy['d_reb_pct'] =  np.where(df_copy['d_reb'] > 0, df_copy['d_oreb'] / df_copy['d_reb'], 0)
+    df_copy.drop(columns = ['o_fgm', 'o_fga', 'o_ftm', 'o_fta', 'o_3pm', 'o_3pa', 'd_fgm', 'd_fga', 'd_ftm', 'd_fta', 'd_3pm', 'd_3pa','d_reb','o_reb','o_oreb','d_oreb','o_dreb','d_dreb'], axis = 1, inplace = True)
+    
+    return df_copy
+
+def fs_players(df_players):
+    df = df_players.copy()
+    df.columns = df.columns.str.lower()
+    
+    stats = [
+    'minutes', 'points', 'orebounds', 'drebounds', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'pf',
+    'fgattempted', 'fgmade', 'ftattempted', 'ftmade', 'threeattempted', 'threemade', 'dq']
+    
+    for x in stats:
+        soma = ((df[x] * 0.5) + (df['post'+x] * 1.5))
+        df[f'total_{x}'] = soma
+    
+    pct_stats = ["total_fg","total_ft","total_three"]
+    
+    for attr in pct_stats:
+        made_col = f'{attr}_pct'
+        df[made_col] = np.where(df[f'{attr}attempted'] > 0, df[f'{attr}made'] / df[f'{attr}attempted'], 0)
+        df.drop(columns = [f'{attr}attempted',f'{attr}made'], axis = 1, inplace = True)
+    
+    df['total_orebounds_pct'] =  np.where(df['total_rebounds'] > 0, df['total_orebounds'] / df['total_rebounds'], 0)
+    
+    
+    df.drop(columns = ['total_orebounds','total_rebounds','total_drebounds'], axis = 1, inplace = True)
+    
+    
+    df.drop(columns = ['minutes', 'points',
+    'orebounds', 'drebounds', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'pf',
+    'fgattempted', 'fgmade', 'ftattempted', 'ftmade', 'threeattempted', 'threemade', 'dq',
+    'postminutes', 'postpoints', 'postorebounds', 'postdrebounds',
+    'postrebounds', 'postassists', 'poststeals', 'postblocks', 'postturnovers', 'postpf',
+    'postfgattempted', 'postfgmade', 'postftattempted', 'postftmade', 'postthreeattempted',
+    'postthreemade', 'postdq','postgs','gs','playerid'], axis = 1, inplace = True)
+    
+    df = df.groupby(['year', 'tmid']).sum().reset_index()
+    
+    return df
+    
+
+def correlation_matrix(df_corr):
+    numeric_df = df_corr.select_dtypes(include=[np.number])
+    corr_matrix = numeric_df.corr()
+
+    plt.figure(figsize=(20, 16))
+
+    # Create a heatmap
+    sns.heatmap(corr_matrix, cmap="coolwarm", annot=True, fmt=".2f", linewidths=.5)
+    
+    plt.show()
+
+def bisserial_corr(df):
+    correlations = {}
+
+    # Iterate over your continuous attributes
+    for column in df.columns:
+        if(column == 'tmid' or column == "year" or column =="tmID"):
+            continue
+        
+        if (column != 'playoff'):
+            correlation, _ = pointbiserialr(df[column], df['playoff'])
+            correlations[column] = correlation
+
+    sorted_correlations = dict(sorted(correlations.items(), key=lambda item: abs(item[1]), reverse=True))
+    
+
+    for feature in sorted_correlations:
+        print(f'{feature}: {abs(sorted_correlations[feature]) * 100:.2f}% correlation')
+    
+    """
+    plt.figure(figsize=(20, 16))
+    plt.bar(sorted_correlations.keys(), [abs(val) * 100 for val in sorted_correlations.values()])
+    plt.xlabel('Features')
+    plt.ylabel('Correlation (%)')
+    plt.title('Correlation of Features with Playoff')
+    plt.show()
+    """
