@@ -1,7 +1,7 @@
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import pandas as pd
 
 def get_db_tables(db_cur):
     query = f"SELECT name FROM sqlite_master WHERE type='table';"
@@ -325,4 +325,64 @@ def check_for_outliers(db_cur):
         fig.delaxes(axes[row_idx][col_idx])
 
     plt.tight_layout()
+    plt.show()
+
+
+def players_plot(db_cur):
+    columns = ['playerID', 'year', 'stint', 'tmID', 'lgID', 'GP', 'GS', 'minutes', 'points', 'oRebounds', 'dRebounds', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'PF', 'fgAttempted', 'fgMade', 'ftAttempted', 'ftMade', 'threeAttempted', 'threeMade', 'dq', 'PostGP', 'PostGS', 'PostMinutes', 'PostPoints', 'PostoRebounds', 'PostdRebounds', 'PostRebounds', 'PostAssists', 'PostSteals', 'PostBlocks', 'PostTurnovers', 'PostPF', 'PostfgAttempted', 'PostfgMade', 'PostftAttempted', 'PostftMade', 'PostthreeAttempted', 'PostthreeMade', 'PostDQ']
+
+    query = '''SELECT * FROM players_teams'''
+    db_cur.execute(query)
+    results = db_cur.fetchall()
+    df = pd.DataFrame(results, columns=columns)
+
+    df['PointsPerGame'] = df['points'] / df['GP']
+    df['ReboundsPerGame'] = df['rebounds'] / df['GP']
+    df['BlocksPerGame'] = df['blocks'] / df['GP']
+    df['StealsPerGame'] = df['steals'] / df['GP']
+
+    df = df.drop(['tmID', 'lgID'], axis=1)
+    df = df.groupby('playerID').mean()
+
+    # Define attributes and their colors
+    attributes = ['PointsPerGame', 'ReboundsPerGame', 'BlocksPerGame', 'StealsPerGame']
+    colors = ['gold', 'mediumblue', 'darkgreen', 'darkorange']
+
+    # Initialize lists to store best performers and names
+    best_performers = []
+    best_performer_names = []
+
+    # Calculate the average values
+    average_values = df[attributes].mean()
+
+    # Create a bar plot with best performers as points and the average as a scatter point
+    plt.figure(figsize=(12, 8))
+
+    x = range(len(attributes))
+
+    for i, attribute in enumerate(attributes):
+        best_performer = df.loc[df[attribute].idxmax()]
+        best_performers.append(best_performer[attribute])
+        best_performer_names.append(best_performer.name)
+
+        plt.bar(x[i], best_performers[i] + 0.1, color=colors[i], alpha=0.7, label=f'Most {attribute}')
+
+    plt.scatter(x, average_values, color='black', marker='x', s=100, label='Average')
+
+    # Add player names on top of each column
+    for i in range(len(attributes)):
+        plt.text(x[i], best_performers[i], best_performer_names[i], ha='center', va='bottom', fontsize=12, color='black')
+
+    # Display the maximum values
+    for i in range(len(attributes)):
+        plt.text(x[i], best_performers[i], f'{best_performers[i]:.2f}', ha='center', va='top', fontsize=10, color='black')
+
+    # Display the average values with some space
+    space = 0.3
+    for i in range(len(attributes)):
+        plt.text(x[i], average_values[i] + space, f'Avg: {average_values[i]:.2f}', ha='center', va='bottom', fontsize=10, color='black')
+
+    plt.title('Best Player by Category')
+    plt.xticks(x, attributes)
+    plt.legend()
     plt.show()

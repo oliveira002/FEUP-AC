@@ -377,16 +377,8 @@ def feature_importance_players(df_players_info, df_players, df_teams):
     merged_df = pd.merge(merged_df, df_teams[['tmID', 'year', 'playoff']], left_on=['tmID', 'year'], right_on=['tmID', 'year'], how='inner')
  
     
-    position_features = {
-    'G': ['points', 'assists', 'steals', 'turnovers', 'minutes'],
-    'C-F': ['points', 'assists', 'steals', 'turnovers', 'minutes'],
-    'C': ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes'],
-    'F': ['points', 'rebounds', 'blocks', 'minutes'],
-    'F-C': ['points', 'rebounds', 'blocks', 'minutes'],
-    'F-G': ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes'],
-    'G-F': ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes']
-    }
-
+    position_features = {'G', 'C-F', 'C', 'F', 'F-C', 'F-G', 'G-F'}
+    
 
     all_features = ['PPM', 'oRebounds', 'dRebounds', 'rebounds',
                 'assists', 'steals', 'blocks', 'turnovers', 'PF', 'fg%', 'ft%',
@@ -407,13 +399,13 @@ def feature_importance_players(df_players_info, df_players, df_teams):
 
 
     # Create an empty dictionary to store feature importance for each position
-    feature_importance = {position: {} for position in position_features.keys()}
+    feature_importance = {position: {} for position in position_features}
     df_players = merged_df.copy()
 
     #Change the playoff column to 1 and 0
    
     # Iterate over positions and build models
-    for position, features in position_features.items():
+    for position in position_features:
         # Prepare the data for the current position
         position_data = df_players[df_players['pos'] == position]
         X = position_data[all_features]
@@ -636,6 +628,7 @@ def team_player_ratings(df__players, df__teams):
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['cum_power_rating'].sum().reset_index()
 
     return team_power_ratings
+
 def calc_team_power_rat(df_players_teams,df_awards,df_players,df_teams,num_years):
     
     df_new_player_rankings = prepare_players_for_ranking(df_players_teams, df_awards)
