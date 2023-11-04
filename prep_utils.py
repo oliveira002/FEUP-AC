@@ -282,7 +282,7 @@ def prepare_teams(teams_df, teams_post, past_years):
     df_copy.drop('arena', axis=1, inplace=True)
     df_copy.drop('name', axis=1, inplace=True)
     df_copy.drop('franchID', axis=1, inplace=True)
-    df_copy.drop('confID', axis=1, inplace=True)
+
 
     
     df_copy.drop('firstRound', axis=1, inplace=True)
@@ -503,6 +503,18 @@ def calculate_power_rating(group):
     
     return player_rating_sum.sum()
 
+def calculate_power_rating2(group):
+    # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
+
+    # Calculate the sum of the player ratings using the formula above
+   
+    
+    player_rating_sum = (.8 * group['rating'] + .2 * group['PostRating'] * 0.5*group['PER']) * group['minutes']
+
+    
+    return player_rating_sum.sum()
+
+
 
 def team_power_rating(df_teams, df_players):
     df_copy = df_players.copy()
@@ -512,10 +524,15 @@ def team_power_rating(df_teams, df_players):
     df_copy = df_copy[columns]
     merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
 
+    columnsToNormalize = ['rating','PostRating']
+    for column in columnsToNormalize:
+        merged_data[column] = min_max_scaling(merged_data[column])
+  
+
     # Calculate the player's contribution to the team based on their Rating, PostRating
     player_contributions = merged_data.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating).reset_index()
   
-    
+
   
     columns = ['tmID','year','min','rank']
    
@@ -526,7 +543,7 @@ def team_power_rating(df_teams, df_players):
     
     player_power_ratings['PowerRating'] = player_power_ratings[0] / player_power_ratings['min']
  
-    
+  
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['PowerRating'].sum().reset_index()
 
     power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
@@ -602,13 +619,17 @@ def merge_all_data(df_coaches,df_teams,df_players_teams,ratings):
 def team_player_ratings(df__players, df__teams):
     df_players = df__players.copy()
     df_teams = df__teams.copy()
-    columns = ['playerID','year','rating','PostRating','pos','tmID','minutes']
+    columns = ['playerID','year','rating','PostRating','pos','tmID','minutes','PER']
     df_players = df_players[columns]
     merged_data = pd.merge(df_players, df_teams, on=['year', 'tmID'], how='inner')
-
-    # Calculate the player's contribution to the team based on their Rating, PostRating
-    player_contributions = merged_data.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating).reset_index()
+     # Normalize all collumns
+    columnsToNormalize = ['PER','rating','PostRating']
+    for column in columnsToNormalize:
+        df__players[column] = min_max_scaling(df__players[column])
   
+    # Calculate the player's contribution to the team based on their Rating, PostRating
+    player_contributions = merged_data.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating2).reset_index()
+ 
     columns = ['tmID','year','min','rank']
    
     df_team = df_teams[columns]
