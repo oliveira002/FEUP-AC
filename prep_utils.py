@@ -509,7 +509,7 @@ def calculate_power_rating2(group):
     # Calculate the sum of the player ratings using the formula above
    
     
-    player_rating_sum = (.8 * group['rating'] + .2 * group['PostRating'] * 0.5*group['PER']) * group['minutes']
+    player_rating_sum = (.8 * group['rating'] + .5 * group['PostRating'] + .3*group['PER']) * group['minutes']
 
     
     return player_rating_sum.sum()
@@ -547,6 +547,8 @@ def team_power_rating(df_teams, df_players):
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['PowerRating'].sum().reset_index()
 
     power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
+
+   
     return power_rating_pivot
 
 
@@ -647,6 +649,10 @@ def team_player_ratings(df__players, df__teams):
 
     # Group by team and year
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['cum_power_rating'].sum().reset_index()
+
+    # Normalize cum_power_rating for every year
+    team_power_ratings['cum_power_rating'] = team_power_ratings.groupby('year')['cum_power_rating'].transform(min_max_scaling)
+
 
     return team_power_ratings
 
