@@ -433,6 +433,7 @@ def feature_importance_players(df_players_info, df_players, df_teams):
 
     return feature_importance, merged_df
 
+
 def calculate_player_rating(row, feature_importance):
     position = row['pos']
     year = row['year']
@@ -505,10 +506,7 @@ def calculate_power_rating(group):
 
 def calculate_power_rating2(group):
     # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
-
     # Calculate the sum of the player ratings using the formula above
-   
-    
     player_rating_sum = (.8 * group['rating'] + .5 * group['PostRating'] + .3*group['PER']) * group['minutes']
 
     
@@ -645,12 +643,12 @@ def team_player_ratings(df__players, df__teams):
     player_power_ratings = player_power_ratings.sort_values(by=['playerID', 'year'])
 
     
-    player_power_ratings['cum_power_rating'] = player_power_ratings.groupby('playerID')['PowerRating'].transform(calculate_cumulative_mean, 3)
+    player_power_ratings['cum_power_rating'] = player_power_ratings.groupby('playerID')['PowerRating'].transform(calculate_cumulative_mean, 5)
 
     # Group by team and year
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['cum_power_rating'].sum().reset_index()
 
-    # Normalize cum_power_rating for every year
+    # Normalize cum_power_rating
     team_power_ratings['cum_power_rating'] = team_power_ratings.groupby('year')['cum_power_rating'].transform(min_max_scaling)
 
 
