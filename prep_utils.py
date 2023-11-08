@@ -507,7 +507,7 @@ def calculate_power_rating(group):
 def calculate_power_rating2(group):
     # formula = (0.5 * player_rating + 0.5 * team_power_rating) / minutes
     # Calculate the sum of the player ratings using the formula above
-    player_rating_sum = (.8 * group['rating'] + .5 * group['PostRating'] + .3*group['PER']) * group['minutes']
+    player_rating_sum = (.8 * group['rating'] + .2 * group['PostRating']) * group['minutes']
 
     
     return player_rating_sum.sum()
@@ -647,9 +647,6 @@ def team_player_ratings(df__players, df__teams):
 
     # Group by team and year
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['cum_power_rating'].sum().reset_index()
-
-    # Normalize cum_power_rating
-    team_power_ratings['cum_power_rating'] = team_power_ratings.groupby('year')['cum_power_rating'].transform(min_max_scaling)
 
 
     return team_power_ratings
