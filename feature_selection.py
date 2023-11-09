@@ -7,8 +7,13 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import RFE
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 from scipy.stats import pointbiserialr
 from sklearn.linear_model import Lasso
+from sklearn.model_selection import GridSearchCV
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
@@ -163,3 +168,66 @@ def bisserial_corr(df):
     plt.title('Correlation of Features with Playoff')
     plt.show()
     """
+
+def grid_search(features,x_train,x_test,y_train,y_test):
+    param_grid_rf = {
+    'n_estimators': [50, 100, 150],
+    'max_features': ['auto', 'sqrt', 'log2'],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'bootstrap': [True, False],
+    'criterion': ['gini', 'entropy']
+    }
+
+    param_grid_lr = {
+    'penalty': ['l1', 'l2'],
+    'C': [0.001, 0.01, 0.1, 1, 10, 100],
+    'fit_intercept': [True, False],
+    'solver': ['liblinear', 'saga']
+    }
+
+    param_grid_svm = {
+        'C': [0.1, 1, 10],
+        'kernel': ['linear', 'rbf', 'poly'],
+        'gamma': ['scale', 'auto']
+    }
+
+    param_grid_gb = {
+        'n_estimators': [50, 100, 200],
+        'learning_rate': [0.01, 0.1, 0.2],
+        'max_depth': [3, 5, 7]
+    }
+
+    param_grid_knn = {
+        'n_neighbors': [3, 5, 7, 10, 15],
+        'weights': ['uniform', 'distance'],
+        'p': [1, 2]
+    }
+
+    # Create instances of the models
+    rf = RandomForestClassifier(random_state=42)
+    lr = LogisticRegression()
+    svm = SVC()
+    gb = GradientBoostingClassifier()
+    knn = KNeighborsClassifier()
+
+    # Create a dictionary of models and their corresponding parameter grids
+    models = {'Random Forest': (rf, param_grid_rf),
+            'Logistic Regression': (lr, param_grid_lr),
+            'Support Vector Machine': (svm, param_grid_svm),
+            'Gradient Boosting': (gb, param_grid_gb),
+            'K-Nearest Neighbor': (knn, param_grid_knn)}
+
+    
+
+    for model_name, (model, param_grid) in models.items():
+        x_test_features = x_test[features[model_name]]
+        x_train_features = x_train[features[model_name]]
+        grid_search = GridSearchCV(model, param_grid, cv=3, scoring='accuracy')
+        grid_search.fit(x_train_features, y_train)
+
+        print(f"Best parameters for {model_name}: {grid_search.best_params_}")
+        print(f"Best cross-validation score for {model_name}: {grid_search.best_score_:.4f}")
+        print(f"Test set accuracy for {model_name}: {grid_search.score(x_test_features, y_test):.4f}\n")
+
