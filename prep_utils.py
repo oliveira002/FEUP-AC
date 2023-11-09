@@ -673,3 +673,29 @@ def calc_team_power_rat(df_players_teams,df_awards,df_players,df_teams,num_years
     teams = teams.drop(columns=['PowerRating', 'playoff', 'rank'], axis = 1)
     
     return teams
+def calculate_ranking(group):
+    if 'L' == group['firstRound']:
+        return 8
+    elif 'W' == group['firstRound'] and ('L' == group['semis'] or pd.isna(group['semis'])):
+        return 4
+    elif 'W' == group['semis'] and ('L' == group['finals'] or pd.isna(group['finals'])):
+        return 2
+    elif 'W' == group['finals']:
+        return 1
+    else:
+        return 9
+
+def playoff_rank(df_new_teams, df_teams, PAST_YEARS):
+ 
+    df_playoffs = df_teams[['tmID', 'year', 'firstRound', 'semis', 'finals']]
+    df_playoffs = df_playoffs.copy()
+    df_playoffs['playoff_rank'] = df_playoffs.apply(lambda row: calculate_ranking(row), axis=1)
+
+    df_new_teams = pd.merge(df_new_teams, df_playoffs[['year', 'tmID', 'playoff_rank']], on=['year', 'tmID'], how='left')
+       
+    df_new_teams['playoff_rank'] = df_new_teams.groupby('tmID')['playoff_rank'].transform(calculate_cumulative_mean, PAST_YEARS)
+
+    df_new_teams['playoff_rank'] = df_new_teams['playoff_rank'].replace(0, 9)
+    
+    return df_new_teams
+
