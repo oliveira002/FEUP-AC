@@ -84,20 +84,22 @@ def fs_teams(df_teams):
     
     df_copy['o_reb_pct'] =  np.where(df_copy['o_reb'] > 0, df_copy['o_oreb'] / df_copy['o_reb'], 0)
     df_copy['d_reb_pct'] =  np.where(df_copy['d_reb'] > 0, df_copy['d_oreb'] / df_copy['d_reb'], 0)
+    
     df_copy.drop(columns = ['o_fgm', 'o_fga', 'o_ftm', 'o_fta', 'o_3pm', 'o_3pa', 'd_fgm', 'd_fga', 'd_ftm', 'd_fta', 'd_3pm', 'd_3pa','d_reb','o_reb','o_oreb','d_oreb','o_dreb','d_dreb'], axis = 1, inplace = True)
     
     return df_copy
 
-def fs_players(df_players):
+def fs_players(df_players, po_weight):
     df = df_players.copy()
     df.columns = df.columns.str.lower()
-    
+    df = df.groupby(['year', 'tmid']).sum().reset_index()
+
     stats = [
     'minutes', 'points', 'orebounds', 'drebounds', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'pf',
-    'fgattempted', 'fgmade', 'ftattempted', 'ftmade', 'threeattempted', 'threemade', 'dq']
+    'fgattempted', 'fgmade', 'ftattempted', 'ftmade', 'threeattempted', 'threemade', 'dq','gs','gp']
     
     for x in stats:
-        soma = ((df[x] * 0.5) + (df['post'+x] * 1.5))
+        soma = ((df[x] * (1 - po_weight)) + (df['post'+x] * po_weight))
         df[f'total_{x}'] = soma
     
     pct_stats = ["total_fg","total_ft","total_three"]
@@ -108,7 +110,7 @@ def fs_players(df_players):
         df.drop(columns = [f'{attr}attempted',f'{attr}made'], axis = 1, inplace = True)
     
     df['total_orebounds_pct'] =  np.where(df['total_rebounds'] > 0, df['total_orebounds'] / df['total_rebounds'], 0)
-    
+    df['total_drebounds_pct'] =  np.where(df['total_rebounds'] > 0, df['total_drebounds'] / df['total_rebounds'], 0)
     
     df.drop(columns = ['total_orebounds','total_rebounds','total_drebounds'], axis = 1, inplace = True)
     
@@ -119,10 +121,8 @@ def fs_players(df_players):
     'postminutes', 'postpoints', 'postorebounds', 'postdrebounds',
     'postrebounds', 'postassists', 'poststeals', 'postblocks', 'postturnovers', 'postpf',
     'postfgattempted', 'postfgmade', 'postftattempted', 'postftmade', 'postthreeattempted',
-    'postthreemade', 'postdq','postgs','gs','playerid'], axis = 1, inplace = True)
-    
-    df = df.groupby(['year', 'tmid']).sum().reset_index()
-    
+    'postthreemade', 'postdq','playerid','gs','gp','postgp','postgs'], axis = 1, inplace = True)
+        
     return df
     
 
@@ -142,7 +142,7 @@ def bisserial_corr(df):
 
     # Iterate over your continuous attributes
     for column in df.columns:
-        if(column == 'tmid' or column == "year" or column =="tmID"):
+        if(column == 'tmid' or column == "year" or column =="tmID" or column == "confID" or column == "confid"):
             continue
         
         if (column != 'playoff'):
