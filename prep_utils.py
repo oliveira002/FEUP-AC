@@ -371,9 +371,10 @@ def group_coaches(df):
 
 def feature_importance_players(df_players_info, df_players, df_teams):
     # Merge the DataFrames
+
     merged_df = pd.merge(df_players_info, df_players, left_on='playerID', right_on='bioID', how='inner')
 
-
+  
     merged_df = pd.merge(merged_df, df_teams[['tmID', 'year', 'playoff']], left_on=['tmID', 'year'], right_on=['tmID', 'year'], how='inner')
  
     
@@ -423,13 +424,8 @@ def feature_importance_players(df_players_info, df_players, df_teams):
 
         # Evaluate the model (you may use different metrics depending on your ranking metric)
         y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        print(f"\nMean Squared Error for {position}: {mse}")
-
-        # Print feature importance for each position sorted
-        print(f"Feature importance for {position}:")
-        for feature, importance in sorted(feature_importance[position].items(), key=lambda x: x[1], reverse=True):
-            print(f"{feature}: {importance}")
+   
+        
 
     return feature_importance, merged_df
 
@@ -530,8 +526,6 @@ def team_power_rating(df_teams, df_players):
     # Calculate the player's contribution to the team based on their Rating, PostRating
     player_contributions = merged_data.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating).reset_index()
   
-
-  
     columns = ['tmID','year','min','rank']
    
     df_team = dft_copy[columns]
@@ -544,10 +538,10 @@ def team_power_rating(df_teams, df_players):
   
     team_power_ratings = player_power_ratings.groupby(['year', 'tmID'])['PowerRating'].sum().reset_index()
 
-    power_rating_pivot = pd.merge(team_power_ratings, df_teams[['year', 'tmID', 'playoff','rank']], on=['year', 'tmID'], how='left')
+
 
    
-    return power_rating_pivot
+    return team_power_ratings
 
 
 def calculate_cumulative_sum(group, past_years):
@@ -651,10 +645,14 @@ def team_player_ratings(df__players, df__teams):
 
     return team_power_ratings
 
-def calc_team_power_rat(df_players_teams,df_awards,df_players,df_teams,num_years):
-    
-    df_new_player_rankings = prepare_players_for_ranking(df_players_teams, df_awards)
-    feature_importance, df_new_players = feature_importance_players(df_new_player_rankings, df_players,df_teams)
+def final_team_ratings(df_players_teams,df_awards,df_players,df_teams,num_years):
+    df_players_teams_copy = df_players_teams.copy()
+    df_awards_copy = df_awards.copy()
+    df_players_copy = df_players.copy()
+    df_teams_copy = df_teams.copy()
+
+    df_new_player_rankings = prepare_players_for_ranking(df_players_teams_copy, df_awards_copy)
+    feature_importance, df_new_players = feature_importance_players(df_new_player_rankings, df_players_copy, df_teams_copy)
     
     df_copy = df_new_players.copy()
     
@@ -665,12 +663,23 @@ def calc_team_power_rat(df_players_teams,df_awards,df_players,df_teams,num_years
     df_new_players = pd.merge(df_new_players, df_rating_playoffs, on=['playerID', 'year'], how='left')
     
 
-    power_ratings = team_power_rating(df_teams, df_new_players)
+    power_ratings = team_power_rating(df_teams_copy, df_new_players)
     sorted_power_ratings = power_ratings.sort_values(by=['year', 'PowerRating'], ascending=[True, False])
     
     teams = team_ratings(sorted_power_ratings,num_years)
     
-    teams = teams.drop(columns=['PowerRating', 'playoff', 'rank'], axis = 1)
+    teams = teams.drop(columns=['PowerRating'], axis = 1)
+
+ 
+    teams.columns = map(str.lower, teams.columns)
+    columnsToNormalize = ['cum_rating']
+    for column in columnsToNormalize:
+        teams[column] = min_max_scaling(teams[column])
+
+  
+
+    teams.rename(columns={'cum_rating': 'team_rating'}, inplace=True)
+
     
     return teams
 def calculate_ranking(group):
@@ -699,3 +708,29 @@ def playoff_rank(df_new_teams, df_teams, PAST_YEARS):
     
     return df_new_teams
 
+
+def final_player_team_ratings(df_teams, df_players_teams, df_awards, df_players, num_years):
+    df_players_teams_copy = df_players_teams.copy()
+    df_awards_copy = df_awards.copy()
+    df_players_copy = df_players.copy()
+    df_teams_copy = df_teams.copy()
+
+    df_new_player_rankings = prepare_players_for_ranking(df_players_teams_copy, df_awards_copy)
+    feature_importance, df_new_players = feature_importance_players(df_new_player_rankings, df_players_copy, df_teams_copy)
+    df_copy = df_new_players.copy()
+    
+    df_rating_regular = ranking_players(feature_importance, df_copy)
+    df_rating_playoffs = ranking_playoff_players(feature_importance, df_copy)
+    
+    df_new_players = pd.merge(df_new_players, df_rating_regular, on=['playerID', 'year'], how='left')
+    df_new_players = pd.merge(df_new_players, df_rating_playoffs, on=['playerID', 'year'], how='left')
+    
+    power_ratings = team_power_rating(df_teams, df_new_players)
+
+    power_ratings.columns = map(str.lower, power_ratings.columns)
+   
+    power_ratings.rename(columns={'powerrating': 'team_players_rating'}, inplace=True)
+    columnsToNormalize = ['team_players_rating']
+    for column in columnsToNormalize:
+        power_ratings[column] = min_max_scaling(power_ratings[column])
+    return power_ratings
