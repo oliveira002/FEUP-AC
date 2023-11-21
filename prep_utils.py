@@ -16,6 +16,9 @@ def db_to_pandas(conn):
     df_series_post = pd.read_sql_query("Select * from series_post;",conn)
     df_teams_post = pd.read_sql_query("Select * from teams_post;",conn)
     df_teams = pd.read_sql_query("Select * from teams;",conn)
+    df_competition_coaches = pd.read_sql_query("Select * from competition_coaches;",conn)
+    df_competition_players_teams = pd.read_sql_query("Select * from competition_players_teams;",conn)
+    df_competition_teams = pd.read_sql_query("Select * from competition_teams;",conn)
     
     df_awards.replace('', np.nan,inplace=True)
     df_coaches.replace('', np.nan,inplace=True)
@@ -24,6 +27,13 @@ def db_to_pandas(conn):
     df_series_post.replace('', np.nan,inplace=True)
     df_teams_post.replace('', np.nan,inplace=True)
     df_teams.replace('', np.nan,inplace=True)
+    df_competition_coaches.replace('', np.nan,inplace=True)
+    df_competition_players_teams.replace('', np.nan,inplace=True)
+    df_competition_teams.replace('', np.nan,inplace=True)
+
+    df_teams = pd.concat([df_teams,df_competition_teams])
+    df_players_teams = pd.concat([df_players_teams,df_competition_players_teams])
+    df_coaches = pd.concat([df_coaches,df_competition_coaches])
     
     return [df_awards, df_coaches, df_players_teams, df_players, df_series_post, df_teams_post, df_teams]
 
@@ -323,6 +333,7 @@ def prepare_teams(teams_df, teams_post, past_years):
         merged_df[attr] = merged_df.groupby('tmID')[attr].transform(calculate_cumulative_sum)
     
     playoffs_mask = (merged_df['playoff'] != 0)
+    
     merged_df['team_playoffs_count'] = playoffs_mask.groupby(df_copy['tmID']).cumsum() - playoffs_mask.astype(int)
     
     #print("Creating attribute winrate \033[1mTeams\033[0m...")
