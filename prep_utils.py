@@ -702,11 +702,9 @@ def final_team_ratings(df_players_teams,df_awards,df_players,df_teams,num_years)
   
 
     teams.rename(columns={'cum_rating': 'team_rating'}, inplace=True)
-
-  
-
     
-    return teams
+    return teams, df_new_players
+
 def calculate_ranking(group):
     if 'L' == group['firstRound']:
         return 8
@@ -734,28 +732,51 @@ def playoff_rank(df_new_teams, df_teams, PAST_YEARS):
     return df_new_teams
 
 
-def final_player_team_ratings(df_teams, df_players_teams, df_awards, df_players, num_years):
-    df_players_teams_copy = df_players_teams.copy()
-    df_awards_copy = df_awards.copy()
+def final_player_team_ratings(df_teams, df_players_teams, df_players, num_years, df_TEST_Kaggle):
+    df_new_players_teams_copy = df_players_teams.copy()
     df_players_copy = df_players.copy()
     df_teams_copy = df_teams.copy()
-
-    df_new_player_rankings = prepare_players_for_ranking(df_players_teams_copy, df_awards_copy)
-    feature_importance, df_new_players = feature_importance_players(df_new_player_rankings, df_players_copy, df_teams_copy)
-    df_copy = df_new_players.copy()
     
-    df_rating_regular = ranking_players(feature_importance, df_copy)
-    df_rating_playoffs = ranking_playoff_players(feature_importance, df_copy)
+
+    player_contributions =df_new_players_teams_copy.groupby(['playerID', 'year', 'tmID']).apply(calculate_power_rating).reset_index()
     
-    df_new_players = pd.merge(df_new_players, df_rating_regular, on=['playerID', 'year'], how='left')
-    df_new_players = pd.merge(df_new_players, df_rating_playoffs, on=['playerID', 'year'], how='left')
-
-    power_ratings = team_power_rating(df_teams, df_new_players)
-
-    power_ratings.columns = map(str.lower, power_ratings.columns)
+  
+    columns = ['tmID','year','min','rank']
    
-    power_ratings.rename(columns={'powerrating': 'team_players_rating'}, inplace=True)
-    columnsToNormalize = ['team_players_rating']
-    for column in columnsToNormalize:
-        power_ratings[column] = min_max_scaling(power_ratings[column])
-    return power_ratings
+    df_team = df_teams_copy[columns]
+    
+    # divide each player contribution by the team's total minutes played
+    player_power_ratings = pd.merge(player_contributions, df_team, on=['year', 'tmID'], how='inner')
+    
+    player_power_ratings['PowerRating'] = player_power_ratings[0] / player_power_ratings['min']
+    
+    player_power_ratings = player_power_ratings[['year', 'tmID', 'playerID', 'PowerRating']]
+
+
+    df_TEST_Kaggle = df_TEST_Kaggle[['year', 'tmID', 'playerID']]
+
+ 
+    df_TEST_Kaggle.loc[:, 'PowerRating'] = 0
+
+
+    player_power_ratings = pd.concat([player_power_ratings, df_TEST_Kaggle], ignore_index=True)
+	
+
+    player_contributions['NextYear_tmID'] = player_power_ratings.groupby('playerID')['tmID'].shift(-1)
+
+
+    team_ratings = player_contributions.groupby(['year', 'NextYear_tmID'])[0].sum().reset_index()
+
+    
+
+    # Change name of columns
+    team_ratings.columns = ['year', 'tmID', 'Team_Rating']
+
+    #Normalize per year
+    team_ratings['Team_Rating'] = min_max_scaling(team_ratings['Team_Rating'])
+
+    team_ratings['year'] = team_ratings['year'] + 1
+
+
+  
+    return team_ratings
