@@ -702,6 +702,9 @@ def final_team_ratings(df_players_teams,df_awards,df_players,df_teams,num_years)
   
 
     teams.rename(columns={'cum_rating': 'team_rating'}, inplace=True)
+
+
+    teams = teams[teams['year'] != 1]
     
     return teams, df_new_players
 
@@ -730,8 +733,18 @@ def playoff_rank(df_new_teams, df_teams, PAST_YEARS):
     df_new_teams['playoff_rank'] = df_new_teams['playoff_rank'].replace(0, 9)
     
     return df_new_teams
-
-
+def next_team_for_player(df, player_id):
+    # Filter data for a specific player
+    player_data = df[df['playerID'] == player_id]
+    
+    # Sort by 'year' to ensure proper order
+    player_data.sort_values(by='year', inplace=True)
+    
+    # Calculate the next team for the player
+    player_data['NextYear_tmID'] = player_data['tmID'].shift(-1)
+    player_data['NextYear'] = player_data['year'].shift(-1)
+    
+    return player_data
 def final_player_team_ratings(df_teams, df_players_teams, df_players, num_years, df_TEST_Kaggle):
     df_new_players_teams_copy = df_players_teams.copy()
     df_players_copy = df_players.copy()
@@ -748,8 +761,8 @@ def final_player_team_ratings(df_teams, df_players_teams, df_players, num_years,
     # divide each player contribution by the team's total minutes played
     player_power_ratings = pd.merge(player_contributions, df_team, on=['year', 'tmID'], how='inner')
     
-    player_power_ratings['PowerRating'] = player_power_ratings[0] / player_power_ratings['min']
-    
+    """player_power_ratings['PowerRating'] = player_power_ratings[0] / player_power_ratings['min']"""
+    player_power_ratings['PowerRating'] = player_power_ratings[0]
     player_power_ratings = player_power_ratings[['year', 'tmID', 'playerID', 'PowerRating']]
 
 
@@ -758,25 +771,50 @@ def final_player_team_ratings(df_teams, df_players_teams, df_players, num_years,
  
     df_TEST_Kaggle.loc[:, 'PowerRating'] = 0
 
-
     player_power_ratings = pd.concat([player_power_ratings, df_TEST_Kaggle], ignore_index=True)
-	
 
+    # Get unique player IDs from your DataFrame
+    unique_players = player_power_ratings['playerID'].unique()
+
+    # Create an empty list to store the results for each player
+    all_players_result = []
+
+    # Iterate through each player to find their next team
+    for player_id in unique_players:
+        player_result = next_team_for_player(player_power_ratings, player_id)
+        all_players_result.append(player_result)
+
+    # Concatenate the results into a single DataFrame
+    all_players_next_team = pd.concat(all_players_result, ignore_index=True)
+
+ 
+    """
+    # Sort by 'playerID' and 'year' to ensure proper grouping and order
+    player_power_ratings.sort_values(by=['playerID', 'year'], inplace=True)
     player_contributions['NextYear_tmID'] = player_power_ratings.groupby('playerID')['tmID'].shift(-1)
+    player_contributions['NextYear'] = player_power_ratings.groupby('playerID')['year'].shift(-1)
+    """
 
 
-    team_ratings = player_contributions.groupby(['year', 'NextYear_tmID'])[0].sum().reset_index()
+
+
+    team_ratings = all_players_next_team.groupby(['NextYear', 'NextYear_tmID'])['PowerRating'].sum().reset_index()
 
     
 
     # Change name of columns
     team_ratings.columns = ['year', 'tmID', 'Team_Rating']
 
+  
+
     #Normalize per year
-    team_ratings['Team_Rating'] = min_max_scaling(team_ratings['Team_Rating'])
+    team_ratings['Team_Players_Rating'] = min_max_scaling(team_ratings['Team_Rating'])
 
-    team_ratings['year'] = team_ratings['year'] + 1
+    # Sort by 'year' and 'tmID' to ensure proper grouping and order
+    team_ratings.sort_values(by=['year', 'tmID'], inplace=True)
+    print(team_ratings.to_string())
 
+   
 
   
-    return team_ratings
+    return team_ratings[['year', 'tmID', 'Team_Players_Rating']]
