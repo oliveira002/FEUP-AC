@@ -812,7 +812,7 @@ def final_player_team_ratings(df_teams, df_players_teams, df_players, num_years,
 
     # Sort by 'year' and 'tmID' to ensure proper grouping and order
     team_ratings.sort_values(by=['year', 'tmID'], inplace=True)
-    print(team_ratings.to_string())
+  
 
    
 
