@@ -199,7 +199,7 @@ def grid_search(features,x_train,x_test,y_train,y_test):
     'C': [0.001, 0.01, 0.1, 1, 10, 100],
     'fit_intercept': [True, False],
     'solver': ['liblinear', 'saga'],
-    'max_iter': 10000
+    'max_iter': [10000]
     }
 
     param_grid_svm = {
@@ -230,7 +230,7 @@ def grid_search(features,x_train,x_test,y_train,y_test):
     # Create a dictionary of models and their corresponding parameter grids
     models = {'Random Forest': (rf, param_grid_rf),
             'Logistic Regression': (lr, param_grid_lr),
-            'Support Vector Machine': (svm, param_grid_svm),
+            #'Support Vector Machine': (svm, param_grid_svm),
             'Gradient Boosting': (gb, param_grid_gb),
             'K-Nearest Neighbors': (knn, param_grid_knn)}
 
@@ -239,12 +239,15 @@ def grid_search(features,x_train,x_test,y_train,y_test):
     for model_name, (model, param_grid) in models.items():
         x_test_features = x_test[features[model_name]]
         x_train_features = x_train[features[model_name]]
-        grid_search = GridSearchCV(model, param_grid, cv=3, scoring='accuracy')
+        
+        grid_search = GridSearchCV(model, param_grid, cv=5, scoring='accuracy')
         grid_search.fit(x_train_features, y_train)
+        
         dic[model_name] = grid_search.best_params_
+        
+        best_model = grid_search.best_estimator_
+        
         print(f"Best parameters for {model_name}: {grid_search.best_params_}")
-        print(f"Best cross-validation score for {model_name}: {grid_search.best_score_:.4f}")
-        print(f"Test set accuracy for {model_name}: {grid_search.score(x_test_features, y_test):.4f}\n")
     
     return dic
 
