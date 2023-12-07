@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import seaborn as sb
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
@@ -17,6 +18,10 @@ from sklearn.model_selection import GridSearchCV
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_curve, roc_auc_score
+
 
 
 
@@ -251,3 +256,40 @@ def grid_search(features,x_train,x_test,y_train,y_test):
     
     return dic
 
+def plot_cfmatrix_report(y_true, y_pred):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 5))
+    ax1 = plt.subplot(121)
+    sb.heatmap(cm, annot=True, fmt='d', cmap="Blues", cbar=True)
+
+    plt.title('Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+
+    classification_rep = classification_report(y_true, y_pred)
+    ax2 = plt.subplot(122)
+    ax2.text(0.05, 0.5, classification_rep, fontsize=12, ha='left')
+    ax2.axis('off')
+
+    total_samples = np.sum(cm)
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            value = cm[i, j]
+            percentage = value / total_samples * 100
+            ax1.text(j + 0.5, i + 0.35, f'{percentage:.2f}%', ha='center', va='center', color='black')
+
+    plt.tight_layout()
+    plt.show()
+    
+
+def plot_auc_curve(model,x_test,y_test):
+    y_pred_prob = model.predict_proba(x_test)[:, 1]
+    fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob)
+    auc = roc_auc_score(y_test, y_pred_prob)
+    plt.plot(fpr, tpr, label='ROC curve (AUC = %0.2f)' % auc)
+    plt.plot([0, 1], [0, 1], 'k--') 
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('(ROC) Curve')
+    plt.legend(loc='lower right')
+    plt.show()
