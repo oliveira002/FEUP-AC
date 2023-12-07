@@ -130,17 +130,30 @@ def fs_players(df_players, po_weight):
         
     return df
     
-
-def correlation_matrix(df_corr):
+def correlation_matrix(df_corr, corr):
     numeric_df = df_corr.select_dtypes(include=[np.number])
     corr_matrix = numeric_df.corr()
 
     plt.figure(figsize=(20, 16))
 
-    # Create a heatmap
-    sns.heatmap(corr_matrix, cmap="coolwarm", annot=True, fmt=".2f", linewidths=.5)
+    # Create a triangular mask
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+
+    # Create a heatmap with the triangular mask
+    sns.heatmap(corr_matrix, cmap="coolwarm", annot=True, fmt=".2f", linewidths=.5, mask=mask)
     
     plt.show()
+    
+    # Find pairs with high correlation (> 0.7)
+    high_corr_pairs = [(col1, col2) for col1 in corr_matrix.columns for col2 in corr_matrix.columns if col1 < col2 and abs(corr_matrix.loc[col1, col2]) > corr]
+    
+    # Print pairs with high correlation
+    if high_corr_pairs:
+        print(f"\n\033[1mPairs with high correlation (> {corr}):\033[0m")
+        for col1, col2 in high_corr_pairs:
+            print(f"{col1} and {col2}: {corr_matrix.loc[col1, col2]:.2f}")
+    else:
+        print(f"\nNo pairs with high correlation (> {corr}) found.")
 
 def bisserial_corr(df):
     correlations = {}

@@ -123,6 +123,7 @@ def players_team_agg(group):
 def prepare_player_teams(df,df_awards,past_years):
     df_copy = df.copy()
     print("Dropping Attribute lgID in \033[1mPlayers_Teams\033[0m...")
+    print("Created Attribute Player_Awards in \033[1mPlayers_Teams\033[0m...")
     df_copy.drop('lgID', axis=1, inplace=True)
     
     df_copy = df_copy.groupby(['playerID', 'year']).apply(players_team_agg).reset_index()
@@ -253,14 +254,14 @@ def prepare_teams(teams_df, teams_post, past_years):
 
     df_copy.drop('divID', axis=1, inplace=True)
     
-    #print("Dropping ldID in \033[1mTeams\033[0m...")
+    print("Dropping ldID in \033[1mTeams\033[0m...")
     df_copy.drop('lgID', axis=1, inplace=True)
 
-    #print("Dropping seeded in \033[1mTeams\033[0m...")
+    print("Dropping seeded in \033[1mTeams\033[0m...")
 
     df_copy.drop('seeded', axis=1, inplace=True)
 
-    #print("Dropping tmORB, tmDRB, tmTRB, opptmORB, opptmDRB, opptmTRB in \033[1mTeams\033[0m...")
+    print("Dropping tmORB, tmDRB, tmTRB, opptmORB, opptmDRB, opptmTRB in \033[1mTeams\033[0m...")
 
     df_copy.drop('tmORB', axis=1, inplace=True)
     df_copy.drop('tmDRB', axis=1, inplace=True)
@@ -269,7 +270,7 @@ def prepare_teams(teams_df, teams_post, past_years):
     df_copy.drop('opptmDRB', axis=1, inplace=True)
     df_copy.drop('opptmTRB', axis=1, inplace=True)
     
-    #print("Dropping GP, homeW, homeL, awayW, awayL, confW, confL, attend, name, confID, franchID & arena in \033[1mTeams\033[0m...")
+    print("Dropping homeW, homeL, awayW, awayL, confW, confL, attend, name, franchID & arena in \033[1mTeams\033[0m...")
 
     df_copy.drop('GP', axis=1, inplace=True)
     df_copy.drop('homeW', axis=1, inplace=True)
@@ -299,7 +300,7 @@ def prepare_teams(teams_df, teams_post, past_years):
     
     merged_df = merged_df.sort_values(by=['tmID', 'year'])
     
-    #print("Converting Target PLAYOFF to binary on\033[1mTeams\033[0m...")
+    print("Converting Target PLAYOFF to binary on\033[1mTeams\033[0m...")
     merged_df['playoff'] = merged_df['playoff'].replace({'Y': 1, 'N': 0})
     
     def calculate_cumulative_sum(group):
@@ -327,13 +328,13 @@ def prepare_teams(teams_df, teams_post, past_years):
     
     merged_df['team_playoffs_count'] = playoffs_mask.groupby(df_copy['tmID']).cumsum() - playoffs_mask.astype(int)
     
-    #print("Creating attribute winrate \033[1mTeams\033[0m...")
-    #print("Dropping won & lost in \033[1mTeams\033[0m...")
+    print("Creating attribute winrate \033[1mTeams\033[0m...")
+    print("Dropping won & lost in \033[1mTeams\033[0m...")
     merged_df["Winrate"] = np.where((merged_df['won'] + merged_df['lost']) > 0,
                                        merged_df['won'] / (merged_df['won'] + merged_df['lost']),
                                        0)
     
-    #print("Creating attribute PlayOffs winrate \033[1mTeams\033[0m...")
+    print("Creating attribute PlayOffs winrate \033[1mTeams\033[0m...")
     merged_df["PO_Winrate"] = np.where((merged_df['W'] + merged_df['L']) > 0,
                                        merged_df['W'] / (merged_df['W'] + merged_df['L']),
                                        0)
