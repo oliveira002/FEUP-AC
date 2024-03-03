@@ -1,4 +1,7 @@
 # FEUP-AC
+
+## Course Grades
+
 ```
 G22:
 • Gustavo Costa - up202004187
@@ -36,3 +39,7 @@ This project focuses on using supervised learning techniques to analyze and pred
 **Model Evaluation**: Evaluate the model's performance using the testing dataset and appropriate metrics (Accuracy, AUC, Precision, Recall & Time).
 
 **Hyperparameter Tuning**: Fine-tune model parameters for optimal results.
+
+| | Project|
+| --- | --- |
+| Grade | **16.00** |
