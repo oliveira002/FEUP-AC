@@ -1,7 +1,5 @@
 # FEUP-AC
 
-## Course Grades
-
 ```
 G22:
 • Gustavo Costa - up202004187
